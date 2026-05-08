@@ -3,193 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BJ Counter Pro - GTO Edition</title>
+    <title>BJ Counter Pro - Full Logic</title>
     <style>
         :root {
             --bg: #0f0f0f;
             --panel: #1a1a1a;
             --accent: #d4af37;
-            --spades: #4d94ff;   /* 青 */
-            --clubs: #5cd65c;    /* 緑 */
-            --hearts: #ff4d4d;   /* 赤 */
-            --diamonds: #ffcc00; /* 黄 */
+            --spades: #4d94ff; --clubs: #5cd65c;
+            --hearts: #ff4d4d; --diamonds: #ffcc00;
         }
 
         body {
             margin: 0; padding: 0; background: var(--bg); color: #fff;
-            font-family: -apple-system, sans-serif; overflow: hidden;
-            height: 100vh; display: flex; flex-direction: column;
+            font-family: sans-serif; overflow: hidden; height: 100vh;
         }
 
-        /* ヘッダーエリア：勝率・GTO表示 */
+        /* ヘッダー */
         .header {
             height: 50px; background: #000; display: flex; align-items: center;
-            padding: 0 10px; border-bottom: 1px solid #333; justify-content: space-between;
+            padding: 0 15px; border-bottom: 1px solid #333; justify-content: space-between;
         }
-        .stats { font-size: 0.8rem; font-weight: bold; color: var(--accent); }
-        .gto-btn { background: var(--accent); color: #000; border: none; padding: 5px 15px; border-radius: 4px; font-weight: bold; }
+        .info-text { font-size: 0.7rem; color: var(--accent); line-height: 1.2; }
 
-        /* メインテーブルエリア */
-        .main-view { flex-grow: 1; position: relative; overflow: hidden; background: radial-gradient(circle, #222 0%, #000 100%); }
+        /* テーブル */
+        .main-view { height: calc(100vh - 50px); position: relative; background: radial-gradient(circle, #222 0%, #000 100%); }
         .poker-table {
             position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-            width: 80%; height: 55%; border: 6px solid #333; border-radius: 120px;
-            background: #151515; box-shadow: inset 0 0 40px #000;
+            width: 85%; height: 50%; border: 6px solid #333; border-radius: 150px; background: #151515;
         }
 
-        /* プレイヤー配置 */
-        .player { position: absolute; width: 60px; text-align: center; font-size: 0.6rem; }
-        .player-box { background: rgba(0,0,0,0.7); border: 1px solid #444; border-radius: 4px; padding: 2px; }
-        .stack-input { width: 100%; background: transparent; border: none; color: #fff; text-align: center; border-bottom: 1px solid #555; font-size: 0.7rem; }
-        
-        .p1 { top: -20px; left: 50%; transform: translateX(-50%); } /* UTG */
-        .p2 { top: 10%; right: 5%; } .p3 { top: 50%; right: -30px; } /* BTN */
-        .hero { bottom: -30px; left: 50%; transform: translateX(-50%); } /* HERO */
+        /* プレイヤー */
+        .player { position: absolute; width: 70px; text-align: center; display: none; }
+        .player-box { background: rgba(0,0,0,0.8); border: 1px solid #444; border-radius: 4px; padding: 3px; font-size: 0.6rem; }
+        .stack-in { width: 100%; background: transparent; border: none; color: #fff; text-align: center; border-bottom: 1px solid #555; font-size: 0.7rem; }
 
-        /* カードスロット */
+        /* カード枠 */
         .slot {
-            width: 35px; height: 50px; background: #222; border: 1px dashed #555;
-            border-radius: 4px; display: flex; flex-direction: column; align-items: center;
-            justify-content: center; font-weight: bold; cursor: pointer; font-size: 0.8rem;
+            width: 38px; height: 54px; background: #222; border: 1px dashed #555; border-radius: 4px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: bold; cursor: pointer; font-size: 0.9rem;
         }
-        .slot.active { border: 2px solid var(--accent); box-shadow: 0 0 10px var(--accent); }
-        
-        /* カードカラー定義 */
-        .c-spades { color: var(--spades) !important; background: #fff !important; border: 1px solid #ccc; }
-        .c-clubs { color: var(--clubs) !important; background: #fff !important; border: 1px solid #ccc; }
-        .c-hearts { color: var(--hearts) !important; background: #fff !important; border: 1px solid #ccc; }
-        .c-diamonds { color: var(--diamonds) !important; background: #fff !important; border: 1px solid #ccc; }
+        .c-spades { color: var(--spades); background: #fff; }
+        .c-clubs { color: var(--clubs); background: #fff; }
+        .c-hearts { color: var(--hearts); background: #fff; }
+        .c-diamonds { color: var(--diamonds); background: #fff; }
 
-        /* 下部ピッカーエリア */
-        .picker-area {
-            height: 160px; background: #111; border-top: 2px solid #333;
-            padding: 5px; display: flex; flex-direction: column; gap: 4px;
+        /* モーダル共通 */
+        .modal {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            z-index: 2000; align-items: center; justify-content: center;
         }
-        .suit-row { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; flex: 1; }
+        .modal-content { background: #1a1a1a; padding: 15px; border-radius: 12px; border: 1px solid #444; width: 90%; max-width: 500px; }
+
+        /* 52枚ピッカー */
+        .deck-grid { display: flex; flex-direction: column; gap: 5px; }
+        .suit-row { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; }
         .p-btn {
-            background: #eee; border-radius: 2px; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; border: none;
+            aspect-ratio: 2/3; background: #eee; border-radius: 2px; border: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 0.6rem; font-weight: bold;
         }
-        .p-btn.disabled { background: #222 !important; color: #444 !important; pointer-events: none; }
-        .row-s { color: var(--spades); } .row-c { color: var(--clubs); }
-        .row-h { color: var(--hearts); } .row-d { color: var(--diamonds); }
+        .p-btn.disabled { background: #333 !important; color: #555 !important; pointer-events: none; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <div class="stats">EQUITY: <span id="equity-val">--%</span></div>
+    <div class="info-text" id="game-status">Rate: $1/2<br>Players: 6</div>
     <div style="display:flex; gap:10px;">
-        <button class="gto-btn" onclick="alert('GTO Strategy: Check/Call')">GTO</button>
-        <button onclick="resetAll()" style="background:#444; border:none; color:#fff; font-size:0.7rem; padding:0 10px; border-radius:4px;">RESET</button>
+        <button onclick="openModal('settings-modal')" style="background:#333; color:#fff; border:none; padding:8px 12px; border-radius:4px;">Settings</button>
+        <button onclick="resetCards()" style="background:#444; color:#fff; border:none; padding:8px 12px; border-radius:4px;">Reset</button>
     </div>
 </div>
 
 <div class="main-view">
-    <div class="poker-table">
+    <div class="poker-table" id="table">
         <!-- Board -->
-        <div style="position:absolute; top:35%; left:50%; transform:translate(-50%, -50%); display:flex; gap:5px;">
-            <div class="slot" id="b1" onclick="setActive('b1')">?</div>
-            <div class="slot" id="b2" onclick="setActive('b2')">?</div>
-            <div class="slot" id="b3" onclick="setActive('b3')">?</div>
-            <div class="slot" id="b4" onclick="setActive('b4')">?</div>
-            <div class="slot" id="b5" onclick="setActive('b5')">?</div>
+        <div style="position:absolute; top:35%; left:50%; transform:translate(-50%, -50%); display:flex; gap:6px;">
+            <div class="slot" id="b1" onclick="openPicker('b1')">?</div>
+            <div class="slot" id="b2" onclick="openPicker('b2')">?</div>
+            <div class="slot" id="b3" onclick="openPicker('b3')">?</div>
+            <div class="slot" id="b4" onclick="openPicker('b4')">?</div>
+            <div class="slot" id="b5" onclick="openPicker('b5')">?</div>
         </div>
 
-        <!-- Players (サンプル3名) -->
-        <div class="player p1"><div class="player-box">UTG<input class="stack-input" value="100BB"></div></div>
-        <div class="player p2"><div class="player-box">BTN<input class="stack-input" value="150BB"></div></div>
+        <!-- プレイヤー枠 (最大9人分用意) -->
+        <div id="p-list"></div>
 
         <!-- Hero -->
-        <div class="player hero">
-            <div style="display:flex; gap:5px; margin-bottom:5px;">
-                <div class="slot" id="h1" onclick="setActive('h1')">?</div>
-                <div class="slot" id="h2" onclick="setActive('h2')">?</div>
+        <div class="player" style="display:block; bottom:-40px; left:50%; transform:translateX(-50%); width:100px;">
+            <div style="display:flex; gap:5px; justify-content:center; margin-bottom:5px;">
+                <div class="slot" id="h1" onclick="openPicker('h1')">?</div>
+                <div class="slot" id="h2" onclick="openPicker('h2')">?</div>
             </div>
-            <div class="player-box" style="border-color:var(--accent)">
-                HERO<input class="stack-input" value="200BB">
-            </div>
+            <div class="player-box" style="border-color:var(--accent)">HERO<input class="stack-in" value="200BB"></div>
         </div>
     </div>
 </div>
 
-<!-- 52枚固定ピッカー -->
-<div class="picker-area" id="picker">
-    <!-- JSで生成 -->
+<!-- 設定モーダル -->
+<div id="settings-modal" class="modal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h3>Game Settings</h3>
+        <div style="text-align:left; font-size:0.9rem;">
+            <p>人数: <select id="set-players">
+                <option value="2">2人</option><option value="6" selected>6人</option><option value="9">9人</option>
+            </select></p>
+            <p>Rate: SB <input type="number" id="set-sb" value="1" style="width:40px;"> / BB <input type="number" id="set-bb" value="2" style="width:40px;"></p>
+            <p>オプション: <label><input type="checkbox" id="set-ante"> Ante</label> <label><input type="checkbox" id="set-straddle"> Straddle</label></p>
+        </div>
+        <button onclick="applySettings()" style="width:100%; padding:10px; background:var(--accent); color:#000; font-weight:bold; border:none; border-radius:5px;">保存して適用</button>
+    </div>
+</div>
+
+<!-- 52枚ピッカーモーダル -->
+<div id="picker-modal" class="modal">
+    <div class="modal-content" style="max-width:700px;">
+        <div class="deck-grid" id="deck-container"></div>
+        <button onclick="closeModalDirect('picker-modal')" style="width:100%; padding:10px; background:#333; color:#fff; border:none; border-radius:5px; margin-top:10px;">キャンセル</button>
+    </div>
 </div>
 
 <script>
-    let activeSlot = 'h1';
-    let usedCards = {}; 
+    let activeSlotId = null;
+    let usedCards = {};
     const suits = [
-        {id:'spades', char:'♠', class:'row-s'},
-        {id:'clubs', char:'♣', class:'row-c'},
-        {id:'hearts', char:'♥', class:'row-h'},
-        {id:'diamonds', char:'♦', class:'row-d'}
+        {id:'spades', char:'♠', color:'var(--spades)'},
+        {id:'clubs', char:'♣', color:'var(--clubs)'},
+        {id:'hearts', char:'♥', color:'var(--hearts)'},
+        {id:'diamonds', char:'♦', color:'var(--diamonds)'}
     ];
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
-    function setActive(id) {
-        document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
-        activeSlot = id;
-        document.getElementById(id).classList.add('active');
-        renderPicker();
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(e) { e.target.style.display = 'none'; }
+    function closeModalDirect(id) { document.getElementById(id).style.display = 'none'; }
+
+    function openPicker(id) {
+        activeSlotId = id;
+        renderDeck();
+        openModal('picker-modal');
     }
 
-    function renderPicker() {
-        const picker = document.getElementById('picker');
-        picker.innerHTML = '';
+    function renderDeck() {
+        const container = document.getElementById('deck-container');
+        container.innerHTML = '';
         suits.forEach(suit => {
             const row = document.createElement('div');
-            row.className = `suit-row ${suit.class}`;
+            row.className = 'suit-row';
             ranks.forEach(rank => {
                 const key = `${suit.id}-${rank}`;
                 const btn = document.createElement('button');
                 btn.className = 'p-btn';
-                const isUsed = Object.entries(usedCards).some(([sid, k]) => sid !== activeSlot && k === key);
-                if(isUsed) btn.classList.add('disabled');
+                btn.style.color = suit.color;
+                if(Object.values(usedCards).includes(key) && usedCards[activeSlotId] !== key) btn.classList.add('disabled');
                 btn.innerHTML = `<div>${rank}</div><div>${suit.char}</div>`;
                 btn.onclick = () => selectCard(suit, rank, key);
                 row.appendChild(btn);
             });
-            picker.appendChild(row);
+            container.appendChild(row);
         });
     }
 
     function selectCard(suit, rank, key) {
-        const slot = document.getElementById(activeSlot);
-        slot.className = `slot selected c-${suit.id}`;
+        const slot = document.getElementById(activeSlotId);
+        slot.className = `slot c-${suit.id}`;
         slot.innerHTML = `<div>${rank}</div><div>${suit.char}</div>`;
-        usedCards[activeSlot] = key;
+        usedCards[activeSlotId] = key;
+        closeModalDirect('picker-modal');
+    }
+
+    function applySettings() {
+        const num = document.getElementById('set-players').value;
+        const sb = document.getElementById('set-sb').value;
+        const bb = document.getElementById('set-bb').value;
+        const ante = document.getElementById('set-ante').checked ? ' (Ante)' : '';
         
-        // 次の枠へ自動移動
-        const order = ['h1','h2','b1','b2','b3','b4','b5'];
-        let idx = order.indexOf(activeSlot);
-        if(idx < order.length - 1) setActive(order[idx+1]);
-        else renderPicker();
-
-        // 簡易勝率計算（シミュレーション用）
-        updateEquity();
-    }
-
-    function updateEquity() {
-        if(usedCards['h1'] && usedCards['h2']) {
-            document.getElementById('equity-val').innerText = (Math.random() * 40 + 30).toFixed(1) + "%";
+        document.getElementById('game-status').innerHTML = `Rate: $${sb}/${bb}${ante}<br>Players: ${num}`;
+        
+        const pList = document.getElementById('p-list');
+        pList.innerHTML = '';
+        // 簡易的な位置計算でプレイヤーを配置
+        for(let i=1; i < num; i++) {
+            const p = document.createElement('div');
+            p.className = 'player';
+            p.style.display = 'block';
+            const angle = (i * (360 / num)) - 90;
+            p.style.left = (50 + 42 * Math.cos(angle * Math.PI / 180)) + '%';
+            p.style.top = (45 + 42 * Math.sin(angle * Math.PI / 180)) + '%';
+            p.innerHTML = `<div class="player-box">P${i}<input class="stack-in" value="100BB"></div>`;
+            pList.appendChild(p);
         }
+        closeModalDirect('settings-modal');
     }
 
-    function resetAll() {
+    function resetCards() {
         usedCards = {};
-        document.querySelectorAll('.slot').forEach(s => {
-            s.className = 'slot';
-            s.innerHTML = '?';
-        });
-        document.getElementById('equity-val').innerText = "--%";
-        setActive('h1');
+        document.querySelectorAll('.slot').forEach(s => { s.className = 'slot'; s.innerHTML = '?'; });
     }
 
-    // 初回起動
-    setActive('h1');
+    // 初期配置
+    applySettings();
 </script>
 
 </body>
