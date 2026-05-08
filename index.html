@@ -106,12 +106,15 @@
         <h3 style="margin:0 0 10px 0;">Settings</h3>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.8rem;">
             <div>Players: <input type="range" id="set-players" min="2" max="9" value="6" oninput="pVal.innerText=this.value"> <span id="pVal">6</span></div>
-            <div>SB <input type="number" id="set-sb" value="1" style="width:35px;"> / BB <input type="number" id="set-bb" value="2" style="width:35px;"></div>
+            <div>Blinds: SB <input type="number" id="set-sb" value="1" style="width:35px;"> / BB <input type="number" id="set-bb" value="2" style="width:35px;"></div>
             <div>
-                <label><input type="checkbox" id="set-ante-on"> Ante (Auto-Pay)</label><br>
+                <label><input type="checkbox" id="set-ante-on"> Ante (Auto)</label><br>
                 Amt: <input type="number" id="set-ante-val" value="1" style="width:40px;">
             </div>
-            <div><label><input type="checkbox" id="set-straddle"> Straddle</label></div>
+            <div>
+                <label><input type="checkbox" id="set-straddle-on"> Straddle (Auto)</label><br>
+                Amt: <input type="number" id="set-straddle-val" value="4" style="width:40px;">
+            </div>
         </div>
         <button onclick="applySettings()" style="width:100%; padding:12px; background:var(--accent); border:none; border-radius:5px; font-weight:bold; margin-top:10px;">Apply Changes</button>
     </div>
@@ -166,8 +169,14 @@
         playerCount = parseInt(document.getElementById('set-players').value);
         const anteOn = document.getElementById('set-ante-on').checked;
         const anteVal = document.getElementById('set-ante-val').value;
-        const str = document.getElementById('set-straddle').checked ? '+S' : '';
-        document.getElementById('rate-display').innerText = `$${document.getElementById('set-sb').value}/${document.getElementById('set-bb').value}${anteOn?'+A'+anteVal:''}${str}`;
+        const strOn = document.getElementById('set-straddle-on').checked;
+        const strVal = document.getElementById('set-straddle-val').value;
+        
+        let rateTxt = `$${document.getElementById('set-sb').value}/${document.getElementById('set-bb').value}`;
+        if(anteOn) rateTxt += `+A${anteVal}`;
+        if(strOn) rateTxt += `+S${strVal}`;
+        document.getElementById('rate-display').innerText = rateTxt;
+        
         renderPlayers();
         closeModal('settings-modal');
     }
@@ -184,10 +193,8 @@
         for(let i=0; i<playerCount; i++) {
             const p = document.createElement('div'); p.className = 'player';
             const angle = (i * (360 / playerCount)) + 90;
-            
-            // 配置の修正: Hero(i=0)を大幅に上（中央寄り）へ。ボード(45%)のすぐ下。
             let rx = 44, ry = 42; 
-            if(i === 0) ry = 30; // 42から30へ引き上げ（見切れ防止）
+            if(i === 0) ry = 30; // Heroは少し上へ
             
             p.style.left = (50 + rx * Math.cos(angle * Math.PI / 180)) + '%';
             p.style.top = (50 + ry * Math.sin(angle * Math.PI / 180)) + '%';
@@ -211,20 +218,22 @@
     }
 
     function nextHand() {
-        // 1. アンティ徴収
-        if(document.getElementById('set-ante-on').checked) {
-            const val = parseFloat(document.getElementById('set-ante-val').value) || 0;
+        // アンティ & ストラドル自動徴収
+        const anteVal = document.getElementById('set-ante-on').checked ? (parseFloat(document.getElementById('set-ante-val').value) || 0) : 0;
+        const strVal = document.getElementById('set-straddle-on').checked ? (parseFloat(document.getElementById('set-straddle-val').value) || 0) : 0;
+        
+        const totalDeduct = anteVal + strVal;
+
+        if(totalDeduct > 0) {
             for(let i=0; i<playerCount; i++) {
                 const el = document.getElementById(`stack-p${i}`);
                 if(el) {
                     let current = parseFloat(el.value) || 0;
-                    el.value = (current - val).toFixed(1);
+                    el.value = (current - totalDeduct).toFixed(1);
                 }
             }
         }
-        // 2. ボタン移動
         btnPosition = (btnPosition + 1) % playerCount;
-        // 3. カードリセット & 再描画
         resetCards();
     }
 
@@ -269,7 +278,21 @@
         if(usedCards['h1'] && usedCards['h2']) {
             const eq = Math.floor(Math.random() * 40 + 35);
             document.getElementById('equity-val').innerText = eq + "%";
-            document.getElementById('gto-text').innerText = (eq > 60 ? "RAISE" : eq > 45 ? "CALL" : "FOLD");
+            
+            // ポジションに応じたGTO簡易補正
+            const currentPosIdx = (0 - btnPosition + playerCount) % playerCount;
+            const pos = getPosName(currentPosIdx, playerCount);
+            
+            let action = "FOLD";
+            let threshold = 50; // 基本しきい値
+            
+            if(pos === "BTN" || pos === "CO") threshold = 43; // ワイドにプレイ
+            if(pos.includes("UTG") || pos === "BB") threshold = 55; // タイトにプレイ
+
+            if(eq > (threshold + 15)) action = "RAISE";
+            else if(eq > threshold) action = "CALL";
+
+            document.getElementById('gto-text').innerText = action + " (" + pos + ")";
         }
     }
 
