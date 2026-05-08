@@ -100,14 +100,13 @@
     const suits_data = [{id:'spades', char:'♠', color:'var(--spades)'},{id:'clubs', char:'♣', color:'var(--clubs)'},{id:'hearts', char:'♥', color:'var(--hearts)'},{id:'diamonds', char:'♦', color:'var(--diamonds)'}];
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
-    // ヨコサワ式レンジ定義（ご提示のリストに基づき更新）
     const yokosawa_rules = {
-        blue: { color: "var(--color-blue)", hands: ["AA", "KK", "AKs", "AQs", "AKo"] },
-        red: { color: "var(--color-red)", hands: ["JJ", "99", "AJs", "ATs", "KQs", "KJs", "KTs", "AQo"] },
-        yellow: { color: "var(--color-yellow)", hands: ["TT", "88", "77", "QJs", "QTs", "JTs", "AJo", "KQo", "KJo", "QJo"] },
-        green: { color: "var(--color-green)", hands: ["66", "55", "A9s", "A8s", "A7s", "A6s", "A5s", "A4s", "A3s", "A2s", "K9s", "Q9s", "J9s", "T9s", "98s", "87s", "76s", "ATo", "KTo", "QTo", "JTo"] },
-        cyan: { color: "var(--color-cyan)", hands: ["44", "33", "22", "T8s", "97s", "A9o", "K9o", "Q9o", "J9o", "T9o"] },
-        white: { color: "var(--color-white)", hands: ["K8s", "K7s", "K6s", "K5s", "K4s", "K3s", "K2s", "Q8s", "Q7s", "Q6s", "J8s", "J7s", "T7s", "86s", "75s", "65s", "A8o", "A7o", "A6o", "A5o", "A4o", "A3o", "A2o", "K8o", "Q8o", "J8o", "T8o", "98o", "87o", "76o"] }
+        blue: { color: "var(--color-blue)", limit: 9, hands: ["AA", "KK", "AKs", "AQs", "AKo"] },
+        red: { color: "var(--color-red)", limit: 9, hands: ["JJ", "99", "AJs", "ATs", "KQs", "KJs", "KTs", "AQo"] },
+        yellow: { color: "var(--color-yellow)", limit: 7, hands: ["TT", "88", "77", "QJs", "QTs", "JTs", "AJo", "KQo", "KJo", "QJo"] },
+        green: { color: "var(--color-green)", limit: 5, hands: ["66", "55", "A9s", "A8s", "A7s", "A6s", "A5s", "A4s", "A3s", "A2s", "K9s", "Q9s", "J9s", "T9s", "98s", "87s", "76s", "ATo", "KTo", "QTo", "JTo"] },
+        cyan: { color: "var(--color-cyan)", limit: 3, hands: ["44", "33", "22", "T8s", "97s", "A9o", "K9o", "Q9o", "J9o", "T9o"] },
+        white: { color: "var(--color-white)", limit: 2, hands: ["K8s", "K7s", "K6s", "K5s", "K4s", "K3s", "K2s", "Q8s", "Q7s", "Q6s", "J8s", "J7s", "T7s", "86s", "75s", "65s", "A8o", "A7o", "A6o", "A5o", "A4o", "A3o", "A2o", "K8o", "Q8o", "J8o", "T8o", "98o", "87o", "76o"] }
     };
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -174,6 +173,7 @@
             container.appendChild(p);
             if(i===0) restoreHeroStyle();
         }
+        calcLogic();
     }
 
     function getPosName(idx, total) {
@@ -227,17 +227,15 @@
         const v1 = 14 - ranks.indexOf(r1), v2 = 14 - ranks.indexOf(r2);
         const handStr = (v1===v2) ? r1+r1 : (v1>v2 ? r1+r2 : r2+r1) + (s1===s2 ? 's' : 'o');
 
-        // 勝率(Equity)計算
+        // 勝率(Equity)
         let eq = 0;
         let boardCards = ['b1','b2','b3','b4','b5'].map(id => usedCards[id]).filter(v => v);
         let boardVals = boardCards.map(c => 14 - ranks.indexOf(c.split('-')[1]));
         let boardSuits = boardCards.map(c => c.split('-')[0]);
-
         let baseStr = (v1 + v2) * 1.5;
         if(v1 === v2) baseStr += 20;
         if(s1 === s2) baseStr += 5;
         eq = baseStr;
-
         if(boardCards.length > 0) {
             let hitCount = 0;
             boardVals.forEach(bv => { if(bv === v1 || bv === v2) hitCount++; });
@@ -250,28 +248,32 @@
         }
         document.getElementById('eq-val').innerText = Math.min(Math.max(eq, 2.0), 99.9).toFixed(1) + "%";
 
-        // ヨコサワ式レンジ判定
+        // レンジ判定ロジック
         const currentPosIdx = (0 - btnPosition + playerCount) % playerCount;
         const behind = playerCount - 1 - currentPosIdx;
         let rangeEl = document.getElementById('yokosawa-text');
-        rangeEl.innerText = "FOLD";
-        rangeEl.style.color = "#888";
+        
+        let resultAction = "FOLD";
+        let resultColor = "#888";
 
-        const checkRange = (key, limit) => {
-            if(behind <= limit && yokosawa_rules[key].hands.includes(handStr)) {
-                rangeEl.innerText = "OPEN";
-                rangeEl.style.color = yokosawa_rules[key].color;
-                return true;
+        // 各レンジを優先順位（強い順）にチェック
+        const keys = ['blue', 'red', 'yellow', 'green', 'cyan', 'white'];
+        for (const key of keys) {
+            const rule = yokosawa_rules[key];
+            if (rule.hands.includes(handStr)) {
+                if (behind <= rule.limit) {
+                    resultAction = "OPEN";
+                    resultColor = rule.color;
+                } else {
+                    resultAction = "FOLD";
+                    resultColor = "#888";
+                }
+                break; // ハンドが属する最初のレンジで判定を確定
             }
-            return false;
-        };
+        }
 
-        if(!checkRange('blue', 9))
-        if(!checkRange('red', 9))
-        if(!checkRange('yellow', 7))
-        if(!checkRange('green', 5))
-        if(!checkRange('cyan', 3))
-        checkRange('white', 2);
+        rangeEl.innerText = resultAction;
+        rangeEl.style.color = resultColor;
 
         // GTO
         let gtoAct = "FOLD";
