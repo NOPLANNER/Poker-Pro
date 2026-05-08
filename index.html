@@ -32,20 +32,19 @@
 
         .main-view { flex-grow: 1; position: relative; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); }
         .poker-table {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 90%; height: 75%; border: 3px solid #2a2a2a; border-radius: 200px; background: #080808;
+            position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%);
+            width: 92%; height: 78%; border: 3px solid #2a2a2a; border-radius: 200px; background: #080808;
         }
 
         .board-container { 
-            position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%); 
+            position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); 
             display: flex; gap: 5px; z-index: 5; 
         }
 
-        .player { position: absolute; width: 66px; text-align: center; z-index: 10; transform: translate(-50%, -50%); }
-        .player-box { background: rgba(0,0,0,0.9); border: 1px solid #444; border-radius: 5px; padding: 3px; font-size: 0.6rem; text-align: center; }
-        .btn-marker { position: absolute; top: -8px; right: -8px; background: #fff; color: #000; border-radius: 50%; width: 16px; height: 16px; font-weight: bold; line-height: 16px; text-align: center; border: 1px solid #000; font-size: 0.6rem; }
+        .player { position: absolute; width: 68px; text-align: center; z-index: 10; transform: translate(-50%, -50%); }
+        .player-box { background: rgba(0,0,0,0.95); border: 1px solid #444; border-radius: 5px; padding: 3px; font-size: 0.6rem; text-align: center; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
+        .btn-marker { position: absolute; top: -8px; right: -8px; background: #fff; color: #000; border-radius: 50%; width: 16px; height: 16px; font-weight: bold; line-height: 16px; text-align: center; border: 1px solid #000; font-size: 0.6rem; z-index: 20; }
         
-        /* スタック表示を完全に中央寄せに */
         .stack-in { 
             width: 100%; background: transparent; border: none; color: #fff; 
             text-align: center; border-bottom: 1px solid #333; font-size: 0.65rem; 
@@ -63,7 +62,6 @@
         .c-hearts { color: var(--hearts); background: #fff; border-style: solid; }
         .c-diamonds { color: var(--diamonds); background: #fff; border-style: solid; }
 
-        /* モーダル */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; }
         .modal-content { background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px solid #444; width: 94%; max-width: 650px; }
         .deck-grid { display: flex; flex-direction: column; gap: 3px; }
@@ -113,9 +111,7 @@
                 <label><input type="checkbox" id="set-ante-on"> Ante (Auto-Pay)</label><br>
                 Amt: <input type="number" id="set-ante-val" value="1" style="width:40px;">
             </div>
-            <div>
-                <label><input type="checkbox" id="set-straddle"> Straddle</label>
-            </div>
+            <div><label><input type="checkbox" id="set-straddle"> Straddle</label></div>
         </div>
         <button onclick="applySettings()" style="width:100%; padding:12px; background:var(--accent); border:none; border-radius:5px; font-weight:bold; margin-top:10px;">Apply Changes</button>
     </div>
@@ -178,16 +174,20 @@
 
     function renderPlayers() {
         const container = document.getElementById('player-container');
+        const currentStacks = [];
+        for(let i=0; i<9; i++) {
+            const el = document.getElementById(`stack-p${i}`);
+            currentStacks[i] = el ? el.value : "100";
+        }
+
         container.innerHTML = '';
         for(let i=0; i<playerCount; i++) {
             const p = document.createElement('div'); p.className = 'player';
             const angle = (i * (360 / playerCount)) + 90;
             
-            // Hero(i===0)は少し内側に、他は外側に配置
+            // 配置の修正: Hero(i=0)を大幅に上（中央寄り）へ。ボード(45%)のすぐ下。
             let rx = 44, ry = 42; 
-            if(i === 0) {
-                ry = 40; // Heroの手札が見切れないよう少し中央へ寄せる
-            }
+            if(i === 0) ry = 30; // 42から30へ引き上げ（見切れ防止）
             
             p.style.left = (50 + rx * Math.cos(angle * Math.PI / 180)) + '%';
             p.style.top = (50 + ry * Math.sin(angle * Math.PI / 180)) + '%';
@@ -199,7 +199,7 @@
             p.innerHTML = `<div class="player-box">
                 ${currentPosIdx === 0 ? '<div class="btn-marker">D</div>' : ''}
                 <div class="pos-label">${isHero ? 'HERO ('+posName+')' : posName}</div>
-                <input class="stack-in" id="stack-p${i}" value="100">
+                <input class="stack-in" id="stack-p${i}" value="${currentStacks[i]}">
                 ${isHero ? `<div style="display:flex; gap:3px; margin-top:3px; justify-content:center;">
                     <div class="slot" id="h1" onclick="openPicker('h1')">${getVal('h1')}</div>
                     <div class="slot" id="h2" onclick="openPicker('h2')">${getVal('h2')}</div>
@@ -211,17 +211,21 @@
     }
 
     function nextHand() {
-        // アンティ自動徴収
+        // 1. アンティ徴収
         if(document.getElementById('set-ante-on').checked) {
             const val = parseFloat(document.getElementById('set-ante-val').value) || 0;
             for(let i=0; i<playerCount; i++) {
                 const el = document.getElementById(`stack-p${i}`);
-                if(el) el.value = (parseFloat(el.value) - val).toFixed(1);
+                if(el) {
+                    let current = parseFloat(el.value) || 0;
+                    el.value = (current - val).toFixed(1);
+                }
             }
         }
+        // 2. ボタン移動
         btnPosition = (btnPosition + 1) % playerCount;
+        // 3. カードリセット & 再描画
         resetCards();
-        renderPlayers();
     }
 
     function getPosName(idx, total) {
@@ -245,6 +249,7 @@
             if(usedCards[id]) {
                 const parts = usedCards[id].split('-');
                 const el = document.getElementById(id);
+                if(!el) return;
                 el.className = `slot c-${parts[0]}`;
                 const suit = suits_data.find(x=>x.id===parts[0]);
                 el.innerHTML = `<div>${parts[1]}</div><div>${suit.char}</div>`;
@@ -254,7 +259,7 @@
 
     function resetCards() {
         usedCards = {};
-        document.querySelectorAll('.slot').forEach(s => { s.className = 'slot'; s.innerHTML = '?'; });
+        document.querySelectorAll('.board-container .slot').forEach(s => { s.className = 'slot'; s.innerHTML = '?'; });
         document.getElementById('equity-val').innerText = "--%";
         document.getElementById('gto-text').innerText = "---";
         renderPlayers();
