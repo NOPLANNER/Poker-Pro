@@ -61,7 +61,6 @@
     </div>
     <div class="header-right">
         <button onclick="openModal('settings-modal')" style="background:transparent; color:var(--accent); border:1px solid var(--accent); padding:6px 8px; border-radius:4px; font-weight:bold; font-size:0.65rem;">SET</button>
-        <div id="rate-display" style="font-size:0.52rem; color:#888; margin-top:2px;">$1/2</div>
     </div>
 </div>
 
@@ -82,7 +81,6 @@
         <h3 style="margin:0 0 10px 0;">Settings</h3>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.8rem;">
             <div>Players: <input type="range" id="set-players" min="2" max="9" value="6" oninput="pVal.innerText=this.value"> <span id="pVal">6</span></div>
-            <div>Blinds: SB <input type="number" id="set-sb" value="1" style="width:35px;"> / BB <input type="number" id="set-bb" value="2" style="width:35px;"></div>
         </div>
         <button onclick="applySettings()" style="width:100%; padding:12px; background:var(--accent); border:none; border-radius:5px; font-weight:bold; margin-top:10px;">Apply Changes</button>
     </div>
@@ -102,16 +100,14 @@
     const suits_data = [{id:'spades', char:'♠', color:'var(--spades)'},{id:'clubs', char:'♣', color:'var(--clubs)'},{id:'hearts', char:'♥', color:'var(--hearts)'},{id:'diamonds', char:'♦', color:'var(--diamonds)'}];
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
-    // ご指定のレンジ表に基づく最新定義
+    // ご指定のレンジと「HeroからBBまでの人数」による条件
     const yokosawa_rules = {
-        blue: { color: "var(--color-blue)", limit: 9, hands: ["AA", "AKs", "AKo", "KK", "QQ"] },
-        red: { color: "var(--color-red)", limit: 9, hands: ["AQs", "AJs", "ATs", "KQs", "AQo", "JJ", "TT", "99"] },
+        blue:   { color: "var(--color-blue)",   limit: 9, hands: ["AA", "AKs", "AKo", "KK", "QQ"] },
+        red:    { color: "var(--color-red)",    limit: 9, hands: ["AQs", "AJs", "ATs", "KQs", "AQo", "JJ", "TT", "99"] },
         yellow: { color: "var(--color-yellow)", limit: 7, hands: ["KJs", "QJs", "JTs", "KQo", "AJo", "88", "77"] },
-        green: { color: "var(--color-green)", limit: 5, hands: ["A9s", "A8s", "A7s", "A6s", "A5s", "A4s", "A3s", "A2s", "KTs", "K9s", "T9s", "QTs", "KJo", "ATo", "66", "55"] },
-        cyan: { color: "var(--color-cyan)", limit: 3, hands: ["Q9s", "J9s", "T8s", "98s", "QJo", "KTo", "JTo", "A9o", "44", "33", "22"] },
-        white: { color: "var(--color-white)", limit: 2, hands: [
-            "K8s", "K7s", "K6s", "K5s", "K4s", "K3s", "K2s", "Q8s", "Q7s", "Q6s", "J8s", "J7s", "QTo", "K9o", "Q9o", "J9o", "T9o", "97s", "87s", "76s", "65s", "A8o", "A7o"
-        ] }
+        green:  { color: "var(--color-green)",  limit: 5, hands: ["A9s", "A8s", "A7s", "A6s", "A5s", "A4s", "A3s", "A2s", "KTs", "K9s", "T9s", "QTs", "KJo", "ATo", "66", "55"] },
+        cyan:   { color: "var(--color-cyan)",   limit: 3, hands: ["Q9s", "J9s", "T8s", "98s", "QJo", "KTo", "JTo", "A9o", "44", "33", "22"] },
+        white:  { color: "var(--color-white)",  limit: 2, hands: ["K8s", "K7s", "K6s", "K5s", "K4s", "K3s", "K2s", "Q8s", "Q7s", "Q6s", "J8s", "J7s", "QTo", "K9o", "Q9o", "J9o", "T9o", "97s", "87s", "76s", "65s", "A8o", "A7o"] }
     };
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -219,20 +215,28 @@
         const char1 = (r1 === '10' ? 'T' : r1), char2 = (r2 === '10' ? 'T' : r2);
         const handStr = (v1===v2) ? char1+char1 : (v1>v2 ? char1+char2 : char2+char1) + (s1===s2 ? 's' : 'o');
 
+        // Equity 簡易
         let eq = (v1 + v2) * 1.5 + (v1 === v2 ? 20 : 0) + (s1 === s2 ? 5 : 0);
         document.getElementById('eq-val').innerText = Math.min(Math.max(eq, 2.0), 99.9).toFixed(1) + "%";
 
+        // --- ロジック修正: HeroからBBまでの人数をカウント ---
+        // BTN=0, SB=1, BB=2
         const heroPosIdx = (0 - btnPosition + playerCount) % playerCount;
-        const behindCount = playerCount - 1 - heroPosIdx;
+        let countToBB;
+        if (heroPosIdx === 1) countToBB = 2; // SB
+        else if (heroPosIdx === 2) countToBB = 1; // BB
+        else if (heroPosIdx === 0) countToBB = 3; // BTN
+        else countToBB = (playerCount - heroPosIdx) + 2; // UTG, HJ, COなど
+        
         let resultAction = "FOLD", resultColor = "#888";
-
         for (const key in yokosawa_rules) {
             const rule = yokosawa_rules[key];
             if (rule.hands.includes(handStr)) {
-                if (behindCount <= rule.limit) { resultAction = "OPEN"; resultColor = rule.color; }
+                if (countToBB <= rule.limit) { resultAction = "OPEN"; resultColor = rule.color; }
                 break;
             }
         }
+        
         document.getElementById('yokosawa-text').innerText = resultAction;
         document.getElementById('yokosawa-text').style.color = resultColor;
         document.getElementById('gto-text').innerText = (eq > 50) ? "RAISE" : "FOLD";
