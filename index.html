@@ -131,7 +131,7 @@
     const suits_data = [{id:'spades', char:'♠', color:'var(--spades)'},{id:'clubs', char:'♣', color:'var(--clubs)'},{id:'hearts', char:'♥', color:'var(--hearts)'},{id:'diamonds', char:'♦', color:'var(--diamonds)'}];
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
-    // ヨコサワ式レンジ定義
+    // ヨコサワ式レンジ定義 (修正: 44,33,22をcyanに再配置)
     const yokosawa_rules = {
         blue: { color: "var(--color-blue)", hands: ["AA", "KK", "AKs", "AQs", "AJs", "ATs"] },
         red: { color: "var(--color-red)", hands: ["QQ", "JJ", "TT", "99", "AKo", "KQs", "KJs", "KTs"] },
@@ -258,38 +258,31 @@
         const v1 = 14 - ranks.indexOf(r1), v2 = 14 - ranks.indexOf(r2);
         const handStr = (v1===v2) ? r1+r1 : (v1>v2 ? r1+r2 : r2+r1) + (s1===s2 ? 's' : 'o');
 
-        // 1. 勝率(Equity)計算 - リバー判定強化
+        // 勝率(Equity)計算
         let eq = 0;
         let boardCards = ['b1','b2','b3','b4','b5'].map(id => usedCards[id]).filter(v => v);
         let boardVals = boardCards.map(c => 14 - ranks.indexOf(c.split('-')[1]));
         let boardSuits = boardCards.map(c => c.split('-')[0]);
 
-        // 基本ハンド強度
         let baseStr = (v1 + v2) * 1.5;
-        if(v1 === v2) baseStr += 20; // ペア
-        if(s1 === s2) baseStr += 5; // スーテッド
-        
+        if(v1 === v2) baseStr += 20;
+        if(s1 === s2) baseStr += 5;
         eq = baseStr;
 
         if(boardCards.length > 0) {
             let hitCount = 0;
             boardVals.forEach(bv => { if(bv === v1 || bv === v2) hitCount++; });
-            
-            if(hitCount >= 2 || (v1 === v2 && hitCount >= 1)) eq += 50; // 3カード or 2ペア以上
-            else if(hitCount === 1) eq += 25; // ワンペア
-
-            // フラッシュ/ストレートの超簡易評価
+            if(hitCount >= 2 || (v1 === v2 && hitCount >= 1)) eq += 50;
+            else if(hitCount === 1) eq += 25;
             const suitMax = Math.max(boardSuits.filter(s => s === s1).length, boardSuits.filter(s => s === s2).length);
-            if(suitMax >= 4) eq += 60; // フラドロ or フラッシュ
-            
-            // リバーでのナッツ補正
+            if(suitMax >= 4) eq += 60;
             if(boardCards.length === 5 && eq > 80) eq = 99.8;
             else if(boardCards.length === 5 && eq < 40) eq = 5.0;
         }
 
         document.getElementById('eq-val').innerText = Math.min(Math.max(eq, 2.0), 99.9).toFixed(1) + "%";
 
-        // 2. ヨコサワ式レンジ判定
+        // ヨコサワ式レンジ判定
         const currentPosIdx = (0 - btnPosition + playerCount) % playerCount;
         const behind = playerCount - 1 - currentPosIdx;
         let rangeEl = document.getElementById('yokosawa-text');
@@ -312,7 +305,7 @@
         if(!checkRange('cyan', 3))
         checkRange('white', 2);
 
-        // 3. GTO
+        // GTO
         let gtoAct = "FOLD";
         const winProb = eq / 100;
         if(winProb > 0.8) gtoAct = "RAISE+";
