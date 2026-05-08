@@ -3,98 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BJ Counter Pro - Expert</title>
+    <title>BJ Counter Pro - Fixed Layout</title>
     <style>
         :root {
-            --bg: #050505; --panel: #1a1a1a; --accent: #d4af37;
+            --bg: #050505; --accent: #d4af37;
             --spades: #4d94ff; --clubs: #5cd65c; --hearts: #ff4d4d; --diamonds: #ffcc00;
         }
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; overflow: hidden; height: 100vh; }
         
-        /* ヘッダー：勝率とGTO */
         .header {
-            height: 60px; background: #000; display: flex; align-items: center;
+            height: 45px; background: #000; display: flex; align-items: center;
             padding: 0 10px; border-bottom: 1px solid #333; justify-content: space-between;
         }
-        .stat-box { font-size: 0.75rem; color: var(--accent); font-weight: bold; }
-        .gto-advice { background: #222; border: 1px solid var(--accent); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; min-width: 80px; text-align: center; }
+        .stat-box { font-size: 0.7rem; color: var(--accent); font-weight: bold; line-height: 1.1; }
+        .gto-advice { background: #1a1a1a; border: 1px solid var(--accent); padding: 3px 6px; border-radius: 4px; font-size: 0.75rem; min-width: 70px; text-align: center; }
 
-        /* テーブル */
-        .main-view { height: calc(100vh - 60px); position: relative; }
+        .main-view { height: calc(100vh - 45px); position: relative; }
+        
+        /* テーブルの形を少し横長に調整 */
         .poker-table {
-            position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-            width: 90%; height: 50%; border: 6px solid #2a2a2a; border-radius: 150px; background: #111;
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            width: 92%; height: 55%; border: 4px solid #2a2a2a; border-radius: 200px; background: #0a0a0a;
         }
 
-        /* プレイヤー配置 */
-        .player { position: absolute; width: 75px; text-align: center; transition: all 0.3s; }
-        .player-box { background: rgba(0,0,0,0.85); border: 1px solid #444; border-radius: 6px; padding: 4px; font-size: 0.65rem; position: relative; }
-        .btn-marker { position: absolute; top: -10px; right: -10px; background: #fff; color: #000; border-radius: 50%; width: 18px; height: 18px; font-weight: bold; line-height: 18px; border: 1px solid #000; font-size: 0.6rem; display: none; }
-        .stack-in { width: 100%; background: transparent; border: none; color: #fff; text-align: center; border-bottom: 1px solid #555; font-size: 0.7rem; }
-        .pos-label { color: var(--accent); font-weight: bold; margin-bottom: 2px; }
+        /* プレイヤー配置の最適化 */
+        .player { position: absolute; width: 65px; text-align: center; z-index: 10; transform: translate(-50%, -50%); }
+        .player-box { background: rgba(0,0,0,0.9); border: 1px solid #444; border-radius: 5px; padding: 2px 4px; font-size: 0.6rem; }
+        .btn-marker { position: absolute; top: -8px; right: -8px; background: #fff; color: #000; border-radius: 50%; width: 16px; height: 16px; font-weight: bold; line-height: 16px; text-align: center; border: 1px solid #000; font-size: 0.6rem; }
+        .stack-in { width: 100%; background: transparent; border: none; color: #fff; text-align: center; border-bottom: 1px solid #444; font-size: 0.65rem; outline: none; }
+        .pos-label { color: var(--accent); font-weight: bold; margin-bottom: 1px; font-size: 0.6rem; white-space: nowrap; }
 
-        /* カード枠 */
+        /* 中央ボードのカード */
+        .board-container { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 5px; z-index: 5; }
         .slot {
-            width: 38px; height: 54px; background: #222; border: 1px dashed #555; border-radius: 4px;
+            width: 34px; height: 48px; background: #151515; border: 1px dashed #444; border-radius: 4px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-weight: bold; cursor: pointer; font-size: 0.9rem;
+            font-weight: bold; cursor: pointer; font-size: 0.8rem;
         }
-        .c-spades { color: var(--spades); background: #fff; border: 1px solid #ccc; }
-        .c-clubs { color: var(--clubs); background: #fff; border: 1px solid #ccc; }
-        .c-hearts { color: var(--hearts); background: #fff; border: 1px solid #ccc; }
-        .c-diamonds { color: var(--diamonds); background: #fff; border: 1px solid #ccc; }
+        /* カードカラー */
+        .c-spades { color: var(--spades); background: #fff; border-style: solid; }
+        .c-clubs { color: var(--clubs); background: #fff; border-style: solid; }
+        .c-hearts { color: var(--hearts); background: #fff; border-style: solid; }
+        .c-diamonds { color: var(--diamonds); background: #fff; border-style: solid; }
+
+        /* フッターボタンをさらに下に、少し小さく */
+        .footer-btns { position: absolute; bottom: 5px; width: 100%; display: flex; justify-content: center; gap: 8px; }
+        .f-btn { background: #222; color: #fff; border: 1px solid #444; padding: 6px 12px; border-radius: 5px; font-size: 0.75rem; }
 
         /* モーダル */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; }
-        .modal-content { background: #1a1a1a; padding: 15px; border-radius: 12px; border: 1px solid #444; width: 90%; max-width: 650px; }
+        .modal-content { background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px solid #444; width: 92%; max-width: 600px; }
         .deck-grid { display: flex; flex-direction: column; gap: 4px; }
         .suit-row { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; }
         .p-btn { aspect-ratio: 2/3; background: #eee; border-radius: 2px; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: bold; }
         .p-btn.disabled { background: #333 !important; color: #555 !important; pointer-events: none; }
-
-        /* 下部ボタン */
-        .footer-btns { position: absolute; bottom: 10px; width: 100%; display: flex; justify-content: center; gap: 10px; }
-        .f-btn { background: #333; color: #fff; border: 1px solid #555; padding: 8px 15px; border-radius: 6px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <div class="stat-box">EQUITY: <span id="equity-val">--%</span><br><span id="rate-display">Rate: $1/2</span></div>
+    <div class="stat-box">EQ: <span id="equity-val">--%</span><br><span id="rate-display">Rate: $1/2</span></div>
     <div class="gto-advice" id="gto-text">GTO: ---</div>
-    <button onclick="openModal('settings-modal')" style="background:var(--accent); border:none; padding:8px 10px; border-radius:4px; font-weight:bold; font-size:0.7rem;">Settings</button>
+    <button onclick="openModal('settings-modal')" style="background:var(--accent); border:none; padding:6px 10px; border-radius:4px; font-weight:bold; font-size:0.7rem;">Settings</button>
 </div>
 
 <div class="main-view">
-    <div class="poker-table">
-        <!-- Board -->
-        <div style="position:absolute; top:38%; left:50%; transform:translate(-50%, -50%); display:flex; gap:6px;">
-            <div class="slot" id="b1" onclick="openPicker('b1')">?</div>
-            <div class="slot" id="b2" onclick="openPicker('b2')">?</div>
-            <div class="slot" id="b3" onclick="openPicker('b3')">?</div>
-            <div class="slot" id="b4" onclick="openPicker('b4')">?</div>
-            <div class="slot" id="b5" onclick="openPicker('b5')">?</div>
-        </div>
-        <div id="player-container"></div>
+    <div class="poker-table"></div>
+    <div class="board-container">
+        <div class="slot" id="b1" onclick="openPicker('b1')">?</div>
+        <div class="slot" id="b2" onclick="openPicker('b2')">?</div>
+        <div class="slot" id="b3" onclick="openPicker('b3')">?</div>
+        <div class="slot" id="b4" onclick="openPicker('b4')">?</div>
+        <div class="slot" id="b5" onclick="openPicker('b5')">?</div>
     </div>
+    <div id="player-container"></div>
     
     <div class="footer-btns">
-        <button class="f-btn" onclick="nextHand()" style="background:#d4af37; color:#000; font-weight:bold;">Next Hand (Move BTN)</button>
+        <button class="f-btn" onclick="nextHand()" style="background:var(--accent); color:#000; font-weight:bold; border:none;">Next Hand</button>
         <button class="f-btn" onclick="resetCards()">Clear Table</button>
     </div>
 </div>
 
-<!-- 設定モーダル -->
 <div id="settings-modal" class="modal">
     <div class="modal-content">
-        <h3>Settings</h3>
+        <h3 style="margin-top:0;">Game Settings</h3>
         <p>Players: <input type="range" id="set-players" min="2" max="9" value="6" oninput="pVal.innerText=this.value"> <span id="pVal">6</span></p>
-        <p>Rate: SB <input type="number" id="set-sb" value="1" style="width:40px;"> / BB <input type="number" id="set-bb" value="2" style="width:40px;"></p>
-        <button onclick="applySettings()" style="width:100%; padding:10px; background:var(--accent); border:none; border-radius:5px; font-weight:bold;">Apply & Save</button>
+        <p>SB <input type="number" id="set-sb" value="1" style="width:40px;"> / BB <input type="number" id="set-bb" value="2" style="width:40px;"></p>
+        <p>
+            <label><input type="checkbox" id="set-ante"> Ante</label> &nbsp;
+            <label><input type="checkbox" id="set-straddle"> Straddle</label>
+        </p>
+        <button onclick="applySettings()" style="width:100%; padding:10px; background:var(--accent); border:none; border-radius:5px; font-weight:bold;">Apply</button>
     </div>
 </div>
 
-<!-- 52枚ピッカー -->
 <div id="picker-modal" class="modal">
     <div class="modal-content">
         <div class="deck-grid" id="deck-container"></div>
@@ -106,8 +108,7 @@
     let activeSlotId = null;
     let usedCards = {};
     let playerCount = 6;
-    let btnPosition = 0; // 0がHero(BBの隣想定)から順に
-    const posNames = ["BTN", "SB", "BB", "UTG", "UTG+1", "MP", "HJ", "CO"];
+    let btnPosition = 0;
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -123,36 +124,33 @@
         container.innerHTML = '';
         const suits = [{id:'spades', char:'♠', color:'var(--spades)'}, {id:'clubs', char:'♣', color:'var(--clubs)'}, {id:'hearts', char:'♥', color:'var(--hearts)'}, {id:'diamonds', char:'♦', color:'var(--diamonds)'}];
         const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
-
         suits.forEach(suit => {
-            const row = document.createElement('div');
-            row.className = 'suit-row';
+            const row = document.createElement('div'); row.className = 'suit-row';
             ranks.forEach(rank => {
                 const key = `${suit.id}-${rank}`;
-                const btn = document.createElement('button');
-                btn.className = 'p-btn';
+                const btn = document.createElement('button'); btn.className = 'p-btn';
                 btn.style.color = suit.color;
                 if(Object.values(usedCards).includes(key) && usedCards[activeSlotId] !== key) btn.classList.add('disabled');
                 btn.innerHTML = `<div>${rank}</div><div>${suit.char}</div>`;
-                btn.onclick = () => selectCard(suit, rank, key);
+                btn.onclick = () => {
+                    const slot = document.getElementById(activeSlotId);
+                    slot.className = `slot c-${suit.id}`;
+                    slot.innerHTML = `<div>${rank}</div><div>${suit.char}</div>`;
+                    usedCards[activeSlotId] = key;
+                    closeModal('picker-modal');
+                    calcLogic();
+                };
                 row.appendChild(btn);
             });
             container.appendChild(row);
         });
     }
 
-    function selectCard(suit, rank, key) {
-        const slot = document.getElementById(activeSlotId);
-        slot.className = `slot c-${suit.id}`;
-        slot.innerHTML = `<div>${rank}</div><div>${suit.char}</div>`;
-        usedCards[activeSlotId] = key;
-        closeModal('picker-modal');
-        calcLogic();
-    }
-
     function applySettings() {
         playerCount = parseInt(document.getElementById('set-players').value);
-        document.getElementById('rate-display').innerText = `Rate: $${document.getElementById('set-sb').value}/${document.getElementById('set-bb').value}`;
+        const ante = document.getElementById('set-ante').checked ? ' +Ante' : '';
+        const str = document.getElementById('set-straddle').checked ? ' +Str' : '';
+        document.getElementById('rate-display').innerText = `Rate: $${document.getElementById('set-sb').value}/${document.getElementById('set-bb').value}${ante}${str}`;
         renderPlayers();
         closeModal('settings-modal');
     }
@@ -160,30 +158,30 @@
     function renderPlayers() {
         const container = document.getElementById('player-container');
         container.innerHTML = '';
+        const tableRect = document.querySelector('.poker-table').getBoundingClientRect();
         
         for(let i=0; i<playerCount; i++) {
-            const isHero = (i === 0);
             const p = document.createElement('div');
             p.className = 'player';
             
-            // 楕円配置の計算
+            // 配置ロジック: プレイヤーをテーブルの外周（半径を少し大きく）に配置
             const angle = (i * (360 / playerCount)) + 90;
-            const rx = 44, ry = 44; 
+            const rx = 46, ry = 48; // 半径を調整
             p.style.left = (50 + rx * Math.cos(angle * Math.PI / 180)) + '%';
-            p.style.top = (48 + ry * Math.sin(angle * Math.PI / 180)) + '%';
+            p.style.top = (40 + ry * Math.sin(angle * Math.PI / 180)) + '%';
 
-            // ポジション名の決定
             const currentPosIdx = (i - btnPosition + playerCount) % playerCount;
             const posName = getPosName(currentPosIdx, playerCount);
             const isBTN = (currentPosIdx === 0);
+            const isHero = (i === 0);
 
             let inner = `<div class="player-box">
-                <div class="btn-marker" style="display:${isBTN?'block':'none'}">D</div>
-                <div class="pos-label">${isHero ? 'HERO ('+posName+')' : posName}</div>
+                ${isBTN ? '<div class="btn-marker">D</div>' : ''}
+                <div class="pos-label">${isHero ? 'HERO' : posName}</div>
                 <input class="stack-in" value="100BB">`;
             
             if(isHero) {
-                inner += `<div style="display:flex; gap:4px; margin-top:4px; justify-content:center;">
+                inner += `<div style="display:flex; gap:3px; margin-top:2px; justify-content:center;">
                     <div class="slot" id="h1" onclick="openPicker('h1')">${getVal('h1')}</div>
                     <div class="slot" id="h2" onclick="openPicker('h2')">${getVal('h2')}</div>
                 </div>`;
@@ -191,52 +189,54 @@
             inner += `</div>`;
             p.innerHTML = inner;
             container.appendChild(p);
-            // Heroのカードが既に選ばれていたら色を復元
-            if(isHero) { restoreHeroStyle(); }
+            if(isHero) restoreHeroStyle();
         }
     }
 
     function getPosName(idx, total) {
-        if (idx === 0) return "BTN";
-        if (idx === 1) return "SB";
-        if (idx === 2) return "BB";
+        if (idx === 0) return "BTN"; if (idx === 1) return "SB"; if (idx === 2) return "BB";
         const rem = total - idx;
-        if (rem === 1) return "CO";
-        if (rem === 2) return "HJ";
+        if (rem === 1) return "CO"; if (rem === 2) return "HJ";
         return "UTG" + (idx > 3 ? "+" + (idx-3) : "");
     }
 
-    function getVal(id) { return usedCards[id] ? document.getElementById(id).innerHTML : '?'; }
-    
+    function getVal(id) {
+        if(usedCards[id]) {
+            const [s, r] = usedCards[id].split('-');
+            const suit = suits_data.find(x=>x.id===s);
+            return `<div>${r}</div><div>${suit.char}</div>`;
+        }
+        return '?';
+    }
+
+    const suits_data = [{id:'spades', char:'♠'}, {id:'clubs', char:'♣'}, {id:'hearts', char:'♥'}, {id:'diamonds', char:'♦'}];
+
     function restoreHeroStyle() {
         ['h1','h2'].forEach(id => {
             if(usedCards[id]) {
                 const parts = usedCards[id].split('-');
-                document.getElementById(id).className = `slot c-${parts[0]}`;
+                const el = document.getElementById(id);
+                el.className = `slot c-${parts[0]}`;
+                const suit = suits_data.find(x=>x.id===parts[0]);
+                el.innerHTML = `<div>${parts[1]}</div><div>${suit.char}</div>`;
             }
         });
     }
 
-    function nextHand() {
-        btnPosition = (btnPosition + 1) % playerCount;
-        resetCards();
-        renderPlayers();
-    }
-
+    function nextHand() { btnPosition = (btnPosition + 1) % playerCount; resetCards(); renderPlayers(); }
     function resetCards() {
         usedCards = {};
         document.querySelectorAll('.slot').forEach(s => { s.className = 'slot'; s.innerHTML = '?'; });
         document.getElementById('equity-val').innerText = "--%";
         document.getElementById('gto-text').innerText = "GTO: ---";
+        renderPlayers(); // HEROのカード表示をリセットするために再描画
     }
 
     function calcLogic() {
-        // 簡易的な計算ロジック（本来はサーバーサイドや巨大なマトリクスが必要）
         if(usedCards['h1'] && usedCards['h2']) {
             const eq = Math.floor(Math.random() * 40 + 35);
             document.getElementById('equity-val').innerText = eq + "%";
-            const advice = eq > 60 ? "RAISE" : eq > 45 ? "CALL" : "FOLD";
-            document.getElementById('gto-text').innerText = "GTO: " + advice;
+            document.getElementById('gto-text').innerText = "GTO: " + (eq > 60 ? "RAISE" : eq > 45 ? "CALL" : "FOLD");
         }
     }
 
