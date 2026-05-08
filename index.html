@@ -28,7 +28,7 @@
         .stat-label { color: var(--accent); margin-right: 2px; }
         
         .header-center { display: flex; gap: 4px; }
-        .action-btn { background: #222; color: #fff; border: 1px solid #444; padding: 6px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        .action-btn { background: #222; color: #fff; border: 1px solid #444; padding: 6px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
         .btn-next { background: var(--accent) !important; color: #000 !important; border: none !important; }
 
         .header-right { text-align: right; }
@@ -85,7 +85,6 @@
     </div>
     <div class="header-center">
         <button class="action-btn btn-next" onclick="nextHand()">Next Hand</button>
-        <button class="action-btn" onclick="resetCards()">Clear</button>
     </div>
     <div class="header-right">
         <button onclick="openModal('settings-modal')" style="background:transparent; color:var(--accent); border:1px solid var(--accent); padding:6px 8px; border-radius:4px; font-weight:bold; font-size:0.65rem;">SET</button>
@@ -132,6 +131,7 @@
     const suits_data = [{id:'spades', char:'♠', color:'var(--spades)'},{id:'clubs', char:'♣', color:'var(--clubs)'},{id:'hearts', char:'♥', color:'var(--hearts)'},{id:'diamonds', char:'♦', color:'var(--diamonds)'}];
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
+    // ヨコサワ式レンジ定義
     const yokosawa_rules = {
         blue: { color: "var(--color-blue)", hands: ["AA", "KK", "AKs", "AQs", "AJs", "ATs"] },
         red: { color: "var(--color-red)", hands: ["QQ", "JJ", "TT", "99", "AKo", "KQs", "KJs", "KTs"] },
@@ -258,39 +258,38 @@
         const v1 = 14 - ranks.indexOf(r1), v2 = 14 - ranks.indexOf(r2);
         const handStr = (v1===v2) ? r1+r1 : (v1>v2 ? r1+r2 : r2+r1) + (s1===s2 ? 's' : 'o');
 
-        // 1. 勝率(Equity)計算 - 役判定強化版
-        let baseEq = (v1 + v2) * 2;
-        if(v1 === v2) baseEq += 20;
-        if(s1 === s2) baseEq += 5;
-
-        const boardCards = ['b1','b2','b3','b4','b5'].map(id => usedCards[id]).filter(v => v);
-        let bonus = 0;
-        let pairCount = 0;
-        let boardValues = boardCards.map(c => 14 - ranks.indexOf(c.split('-')[1]));
+        // 1. 勝率(Equity)計算 - リバー判定強化
+        let eq = 0;
+        let boardCards = ['b1','b2','b3','b4','b5'].map(id => usedCards[id]).filter(v => v);
+        let boardVals = boardCards.map(c => 14 - ranks.indexOf(c.split('-')[1]));
         let boardSuits = boardCards.map(c => c.split('-')[0]);
 
-        boardValues.forEach(bv => {
-            if(bv === v1 || bv === v2) pairCount++;
-        });
+        // 基本ハンド強度
+        let baseStr = (v1 + v2) * 1.5;
+        if(v1 === v2) baseStr += 20; // ペア
+        if(s1 === s2) baseStr += 5; // スーテッド
+        
+        eq = baseStr;
 
-        // 役強度計算
-        if(boardCards.length >= 3) {
-            if(pairCount >= 2) bonus += 60; // 2ペア以上
-            else if(pairCount === 1) bonus += 25; // トップペアなど
+        if(boardCards.length > 0) {
+            let hitCount = 0;
+            boardVals.forEach(bv => { if(bv === v1 || bv === v2) hitCount++; });
             
-            // フラッシュ判定
-            const s1Count = boardSuits.filter(s => s === s1).length;
-            const s2Count = boardSuits.filter(s => s === s2).length;
-            if(s1Count >= 4 || s2Count >= 4) bonus += 70; // ほぼフラッシュ
-            else if(s1Count === 3 || s2Count === 3) bonus += 15; // ドロー
+            if(hitCount >= 2 || (v1 === v2 && hitCount >= 1)) eq += 50; // 3カード or 2ペア以上
+            else if(hitCount === 1) eq += 25; // ワンペア
+
+            // フラッシュ/ストレートの超簡易評価
+            const suitMax = Math.max(boardSuits.filter(s => s === s1).length, boardSuits.filter(s => s === s2).length);
+            if(suitMax >= 4) eq += 60; // フラドロ or フラッシュ
+            
+            // リバーでのナッツ補正
+            if(boardCards.length === 5 && eq > 80) eq = 99.8;
+            else if(boardCards.length === 5 && eq < 40) eq = 5.0;
         }
 
-        let finalEq = Math.min(Math.max(baseEq + bonus, 32), 99);
-        if(boardCards.length === 5 && bonus > 50) finalEq = 99.8; // リバーでのナッツ級
+        document.getElementById('eq-val').innerText = Math.min(Math.max(eq, 2.0), 99.9).toFixed(1) + "%";
 
-        document.getElementById('eq-val').innerText = finalEq.toFixed(1) + "%";
-
-        // 2. ヨコサワ式レンジ判定 & カラー表示
+        // 2. ヨコサワ式レンジ判定
         const currentPosIdx = (0 - btnPosition + playerCount) % playerCount;
         const behind = playerCount - 1 - currentPosIdx;
         let rangeEl = document.getElementById('yokosawa-text');
@@ -315,9 +314,10 @@
 
         // 3. GTO
         let gtoAct = "FOLD";
-        if(finalEq > 75) gtoAct = "RAISE+";
-        else if(finalEq > 58) gtoAct = "RAISE";
-        else if(finalEq > 42) gtoAct = "CALL";
+        const winProb = eq / 100;
+        if(winProb > 0.8) gtoAct = "RAISE+";
+        else if(winProb > 0.6) gtoAct = "RAISE";
+        else if(winProb > 0.4) gtoAct = "CALL";
         document.getElementById('gto-text').innerText = gtoAct;
     }
 
