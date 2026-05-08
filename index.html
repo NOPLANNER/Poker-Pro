@@ -2,241 +2,206 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, landscape-primary">
-    <title>BlackJoker Poker Strategy Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Poker Strategy - Rotated UI</title>
     <style>
         :root {
-            --bg-dark: #0a0a0a;
-            --table-gray: #232323;
-            --table-border: #3a3a3a;
+            --bg-dark: #050505;
+            --table-gray: #1a1a1a;
             --accent-gold: #d4af37;
-            --text-main: #e0e0e0;
-            
-            /* 4-Color Deck */
-            --color-spades: #4d94ff;   /* Blue */
-            --color-hearts: #ff4d4d;   /* Red */
-            --color-clubs: #5cd65c;    /* Green */
-            --color-diamonds: #ffcc00; /* Yellow */
+            --color-spades: #4d94ff;
+            --color-hearts: #ff4d4d;
+            --color-clubs: #5cd65c;
+            --color-diamonds: #ffcc00;
         }
 
-        body {
-            margin: 0; padding: 0; background: var(--bg-dark);
-            color: var(--text-main); font-family: 'Segoe UI', Roboto, sans-serif;
-            overflow: hidden; display: flex; height: 100vh;
+        /* 画面全体を黒に */
+        html, body {
+            margin: 0; padding: 0; background: #000;
+            width: 100%; height: 100%; overflow: hidden;
         }
 
-        /* Side Navigation */
-        .sidebar {
-            width: 220px; background: #111; border-right: 1px solid #222;
-            padding: 15px; display: flex; flex-direction: column; z-index: 100;
-        }
-        .sidebar h2 { color: var(--accent-gold); font-size: 1.2rem; margin-top: 0; }
-        .config-item { margin-bottom: 15px; font-size: 0.85rem; }
-        .config-item label { display: block; margin-bottom: 4px; color: #888; }
-        .config-item input { 
-            width: 100%; background: #222; border: 1px solid #444; 
-            color: #fff; padding: 5px; border-radius: 4px; 
-        }
-
-        /* Main Game Area */
-        .game-viewport {
-            flex-grow: 1; position: relative;
-            background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
-            display: flex; align-items: center; justify-content: center;
+        /* 
+           ここが核心：アプリ全体を90度回転させる
+           縦持ち状態で「横向きの画面」に見えるように配置
+        */
+        .rotated-wrapper {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 100vh; /* 縦の長さを「回転後の幅」にする */
+            height: 100vw; /* 横の幅を「回転後の高さ」にする */
+            transform: translate(-50%, -50%) rotate(90deg);
+            background: var(--bg-dark);
+            display: flex; flex-direction: column;
+            transform-origin: center center;
         }
 
-        /* Poker Table */
+        /* ヘッダー */
+        .top-nav {
+            height: 40px; background: #111; display: flex; align-items: center;
+            padding: 0 15px; border-bottom: 1px solid #222; justify-content: space-between;
+        }
+
+        /* テーブルエリア */
+        .table-area {
+            flex-grow: 1; position: relative; display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle, #151515 0%, #050505 100%);
+        }
         .poker-table {
-            width: 80%; height: 60%; background: var(--table-gray);
-            border: 12px solid var(--table-border); border-radius: 200px;
-            position: relative; box-shadow: inset 0 0 80px rgba(0,0,0,0.8);
+            width: 85%; height: 65%; background: var(--table-gray);
+            border: 8px solid #333; border-radius: 150px;
+            position: relative; box-shadow: inset 0 0 50px #000;
         }
 
-        /* Cards */
+        /* カード */
         .card {
-            width: 48px; height: 70px; background: #fff; border-radius: 4px;
-            color: #000; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; font-weight: bold;
-            font-size: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            width: 42px; height: 60px; background: #fff; border-radius: 4px;
+            color: #000; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; font-weight: bold; cursor: pointer; border: 1px solid #ccc;
+            font-size: 0.9rem;
         }
-        .card.spades { color: var(--color-spades); }
-        .card.hearts { color: var(--color-hearts); }
-        .card.clubs { color: var(--color-clubs); }
-        .card.diamonds { color: var(--color-diamonds); }
-        .card.facedown { background: #333; color: #444; border: 1px solid #555; }
+        .card.facedown { background: #333; color: #555; border: 1px solid #444; }
+        .spades { color: var(--color-spades); }
+        .hearts { color: var(--color-hearts); }
+        .clubs { color: var(--color-clubs); }
+        .diamonds { color: var(--color-diamonds); }
 
-        /* Player Slots */
-        .player-slot { position: absolute; width: 110px; display: flex; flex-direction: column; align-items: center; }
-        .player-box {
-            background: rgba(15,15,15,0.9); border: 1px solid #444;
-            padding: 6px; border-radius: 8px; width: 100%; text-align: center;
-        }
-        .hero .player-box { border-color: var(--accent-gold); box-shadow: 0 0 10px rgba(212,175,55,0.3); }
+        /* プレイヤー配置 */
+        .player { position: absolute; width: 90px; text-align: center; }
+        .player-box { background: rgba(0,0,0,0.8); border: 1px solid #444; border-radius: 8px; padding: 4px; }
+        .stack-input { background: transparent; border: none; color: #fff; width: 45px; text-align: center; border-bottom: 1px solid #444; font-size: 0.8rem; }
         
-        .pos-badge { font-size: 0.7rem; font-weight: bold; color: var(--accent-gold); }
-        .stack-val { font-size: 0.95rem; font-weight: bold; border: none; background: transparent; color: #fff; width: 60px; text-align: center; }
-        .bb-val { font-size: 0.7rem; color: #777; }
+        .p-utg { top: -35px; left: 15%; }
+        .p-btn { top: 40%; right: -70px; }
+        .hero { bottom: -55px; left: 50%; transform: translateX(-50%); }
 
-        /* Positions Around Table */
-        .p-utg { top: -60px; left: 15%; }
-        .p-hj  { top: -80px; left: 50%; transform: translateX(-50%); }
-        .p-co  { top: -60px; right: 15%; }
-        .p-btn { top: 40%; right: -100px; transform: translateY(-50%); }
-        .p-sb  { bottom: -60px; left: 20%; }
-        .hero  { bottom: -80px; left: 50%; transform: translateX(-50%); }
-
-        /* GTO Panel */
-        .gto-panel {
-            position: absolute; top: 20px; right: 20px;
-            background: rgba(10, 10, 10, 0.85); border: 1px solid var(--accent-gold);
-            padding: 12px; border-radius: 8px; width: 180px; backdrop-filter: blur(8px);
+        /* モーダル（回転したラッパーの中に配置） */
+        .modal {
+            display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.9);
+            z-index: 2000; align-items: center; justify-content: center;
         }
-        .gto-title { font-size: 0.7rem; color: #888; margin-bottom: 8px; border-bottom: 1px solid #333; }
-        .win-rate { font-size: 1.6rem; font-weight: bold; color: var(--color-clubs); display: block; }
-        
-        .strat-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 8px 0; background: #333; }
-        .f-part { background: #555; }
-        .c-part { background: var(--color-spades); }
-        .r-part { background: var(--color-hearts); }
-
-        .btn-action {
-            margin-top: 10px; background: var(--accent-gold); color: #000; border: none;
-            padding: 8px; border-radius: 4px; font-weight: bold; width: 100%; cursor: pointer;
+        .modal-content {
+            background: #222; padding: 15px; border-radius: 12px; border: 1px solid var(--accent-gold);
+            width: 80%; text-align: center;
         }
 
-        /* Community Cards */
-        .board-container {
-            position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-            display: flex; gap: 8px;
-        }
+        /* カードピッカー用グリッド */
+        .picker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
+        .suit-btn { font-size: 24px; padding: 8px; cursor: pointer; border: 1px solid #444; background: #333; border-radius: 5px; }
+        .rank-btn { padding: 8px 0; background: #fff; color: #000; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
-<aside class="sidebar">
-    <h2>Strategy Pro</h2>
-    <div class="config-item">
-        <label>Blind / Ante</label>
-        <div style="display:flex; gap:5px;">
-            <input type="number" id="sb-input" value="1">
-            <input type="number" id="bb-input" value="2" onchange="recalcAllBB()">
-        </div>
-    </div>
-    <div class="config-item">
-        <label>Settings</label>
-        <div style="font-size: 0.8rem;">
-            <input type="checkbox" id="ante-on"> Ante (12.5%)<br>
-            <input type="checkbox" id="straddle-on"> Straddle
-        </div>
-    </div>
-    <button class="btn-action" style="background:#333; color:#fff;" onclick="rotatePositions()">Next Hand (Rotate)</button>
-</aside>
+<div class="rotated-wrapper">
+    <nav class="top-nav">
+        <div id="game-info" style="font-size: 0.75rem; color: var(--accent-gold);">Rate: $1/2 | Ante: 0.2</div>
+        <button onclick="openModal('settings-modal')" style="background: #333; color: white; border: none; padding: 4px 12px; border-radius: 4px; font-size: 0.8rem;">設定</button>
+    </nav>
 
-<main class="game-viewport">
-    <div class="poker-table">
-        <!-- Pot Display -->
-        <div style="position:absolute; top:20%; left:50%; transform:translateX(-50%); color:var(--accent-gold); font-weight:bold;">
-            POT: $<span id="pot-total">15.0</span>
-        </div>
-
-        <!-- Board -->
-        <div class="board-container">
-            <div class="card spades"><div>10</div><div>♠</div></div>
-            <div class="card hearts"><div>J</div><div>♥</div></div>
-            <div class="card spades"><div>Q</div><div>♠</div></div>
-            <div class="card facedown">?</div>
-            <div class="card facedown">?</div>
-        </div>
-
-        <!-- Players -->
-        <div class="player-slot p-utg">
-            <div class="player-box">
-                <span class="pos-badge">UTG</span>
-                <input type="number" class="stack-val" value="200" oninput="updateSingleBB(this)">
-                <div class="bb-val">100 bb</div>
+    <div class="table-area">
+        <div class="poker-table">
+            <!-- ボード -->
+            <div style="position:absolute; top:45%; left:50%; transform:translate(-50%, -50%); display:flex; gap:6px;">
+                <div class="card facedown" id="board1" onclick="openCardPicker('board1')">?</div>
+                <div class="card facedown" id="board2" onclick="openCardPicker('board2')">?</div>
+                <div class="card facedown" id="board3" onclick="openCardPicker('board3')">?</div>
+                <div class="card facedown" id="board4" onclick="openCardPicker('board4')">?</div>
+                <div class="card facedown" id="board5" onclick="openCardPicker('board5')">?</div>
             </div>
-        </div>
 
-        <div class="player-slot p-hj">
-            <div class="player-box">
-                <span class="pos-badge">HJ</span>
-                <input type="number" class="stack-val" value="250" oninput="updateSingleBB(this)">
-                <div class="bb-val">125 bb</div>
+            <!-- プレイヤー -->
+            <div class="player p-utg">
+                <div class="player-box">
+                    <div style="font-size:0.6rem; color:var(--accent-gold)">UTG</div>
+                    $<input type="number" class="stack-input" value="200">
+                </div>
             </div>
-        </div>
 
-        <div class="player-slot p-btn">
-            <div style="position:absolute; left:-25px; top:10px; background:#eee; color:#000; border-radius:50%; width:20px; height:20px; font-size:0.7rem; text-align:center; line-height:20px; font-weight:bold;">D</div>
-            <div class="player-box">
-                <span class="pos-badge">BTN</span>
-                <input type="number" class="stack-val" value="180" oninput="updateSingleBB(this)">
-                <div class="bb-val">90 bb</div>
-            </div>
-        </div>
-
-        <!-- Hero (You) -->
-        <div class="player-slot hero">
-            <div style="display:flex; gap:4px; margin-bottom:8px;">
-                <div class="card clubs"><div>K</div><div>♣</div></div>
-                <div class="card diamonds"><div>A</div><div>♦</div></div>
-            </div>
-            <div class="player-box">
-                <span class="pos-badge">HERO (BB)</span>
-                <input type="number" class="stack-val" value="400" oninput="updateSingleBB(this)">
-                <div class="bb-val">200 bb</div>
+            <!-- ヒーロー -->
+            <div class="player hero">
+                <div style="display:flex; gap:4px; justify-content:center; margin-bottom:5px;">
+                    <div class="card facedown" id="hero1" onclick="openCardPicker('hero1')">?</div>
+                    <div class="card facedown" id="hero2" onclick="openCardPicker('hero2')">?</div>
+                </div>
+                <div class="player-box" style="border-color: var(--accent-gold);">
+                    <div style="font-size:0.6rem; color:#fff">HERO (BB)</div>
+                    $<input type="number" class="stack-input" value="300">
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- GTO Stats Panel -->
-    <div class="gto-panel">
-        <div class="gto-title">EQUITY vs RANGE</div>
-        <span class="win-rate">58.4%</span>
-        
-        <div class="gto-title" style="margin-top:10px;">GTO ACTION</div>
-        <div class="strat-bar">
-            <div class="f-part" style="width: 10%;"></div>
-            <div class="c-part" style="width: 25%;"></div>
-            <div class="r-part" style="width: 65%;"></div>
+    <!-- 設定モーダル -->
+    <div id="settings-modal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3>Settings</h3>
+            <div style="font-size:0.8rem; text-align: left; display:inline-block;">
+                <p>SB: <input type="number" id="sb-val" value="1" style="width:50px;"></p>
+                <p>BB: <input type="number" id="bb-val" value="2" style="width:50px;"></p>
+            </div>
+            <button class="rank-btn" onclick="saveSettings()" style="width:100%; margin-top:10px; background:var(--accent-gold);">保存して閉じる</button>
         </div>
-        <div style="font-size:0.75rem;">
-            <span style="color:var(--color-hearts)">RAISE</span> to 3.5bb<br>
-            <span style="color:#888;">EV: +2.4bb</span>
-        </div>
-        <button class="btn-action" onclick="simulateGTO()">Calculate GTO</button>
     </div>
-</main>
+
+    <!-- カードピッカー -->
+    <div id="card-picker" class="modal">
+        <div class="modal-content">
+            <div id="suit-selection" style="display:flex; justify-content:space-around;">
+                <div class="suit-btn" style="color:var(--color-spades)" onclick="selectSuit('spades', '♠')">♠</div>
+                <div class="suit-btn" style="color:var(--color-hearts)" onclick="selectSuit('hearts', '♥')">♥</div>
+                <div class="suit-btn" style="color:var(--color-clubs)" onclick="selectSuit('clubs', '♣')">♣</div>
+                <div class="suit-btn" style="color:var(--color-diamonds)" onclick="selectSuit('diamonds', '♦')">♦</div>
+            </div>
+            <div id="rank-selection" class="picker-grid" style="display:none;"></div>
+            <button onclick="document.getElementById('card-picker').style.display='none'" style="margin-top:10px; width:100%; border:none; padding:8px;">キャンセル</button>
+        </div>
+    </div>
+</div>
 
 <script>
-    // BB換算のリアルタイム計算
-    function updateSingleBB(input) {
-        const bbSize = parseFloat(document.getElementById('bb-input').value) || 1;
-        const stackValue = parseFloat(input.value) || 0;
-        const bbDisplay = input.nextElementSibling;
-        bbDisplay.innerText = (stackValue / bbSize).toFixed(1) + " bb";
+    let activeCardId = null;
+    let selectedSuit = '';
+    let selectedSuitChar = '';
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(e) { e.target.style.display = 'none'; }
+
+    function openCardPicker(id) {
+        activeCardId = id;
+        document.getElementById('suit-selection').style.display = 'flex';
+        document.getElementById('rank-selection').style.display = 'none';
+        document.getElementById('card-picker').style.display = 'flex';
     }
 
-    function recalcAllBB() {
-        const inputs = document.querySelectorAll('.stack-val');
-        inputs.forEach(input => updateSingleBB(input));
+    function selectSuit(suit, char) {
+        selectedSuit = suit;
+        selectedSuitChar = char;
+        document.getElementById('suit-selection').style.display = 'none';
+        const rankGrid = document.getElementById('rank-selection');
+        rankGrid.style.display = 'grid';
+        rankGrid.innerHTML = '';
+        ['A','K','Q','J','10','9','8','7','6','5','4','3','2'].forEach(rank => {
+            const btn = document.createElement('div');
+            btn.className = 'rank-btn';
+            btn.innerText = rank;
+            btn.onclick = () => setCard(rank);
+            rankGrid.appendChild(btn);
+        });
     }
 
-    // GTO計算（シミュレーション・デモ）
-    function simulateGTO() {
-        const winRateElement = document.querySelector('.win-rate');
-        winRateElement.innerText = "Calculating...";
-        
-        setTimeout(() => {
-            const randomWin = (Math.random() * 40 + 30).toFixed(1);
-            winRateElement.innerText = randomWin + "%";
-            // 実際はここでレンジ表を検索するロジックを走らせる
-        }, 800);
+    function setCard(rank) {
+        const cardEl = document.getElementById(activeCardId);
+        cardEl.className = `card ${selectedSuit}`;
+        cardEl.innerHTML = `<div>${rank}</div><div>${selectedSuitChar}</div>`;
+        document.getElementById('card-picker').style.display = 'none';
     }
 
-    // ポジション回転
-    function rotatePositions() {
-        console.log("Rotating dealer button and positions...");
-        // ポジション名や状態を配列で回す処理をここに記述
+    function saveSettings() {
+        const sb = document.getElementById('sb-val').value;
+        const bb = document.getElementById('bb-val').value;
+        document.getElementById('game-info').innerText = `Rate: $${sb}/${bb}`;
+        document.getElementById('settings-modal').style.display = 'none';
     }
 </script>
 
