@@ -100,6 +100,7 @@
     const suits_data = [{id:'spades', char:'♠', color:'var(--spades)'},{id:'clubs', char:'♣', color:'var(--clubs)'},{id:'hearts', char:'♥', color:'var(--hearts)'},{id:'diamonds', char:'♦', color:'var(--diamonds)'}];
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
+    // ハンドレンジ定義
     const yokosawa_rules = {
         blue: { color: "var(--color-blue)", limit: 9, hands: ["AA", "KK", "AKs", "AQs", "AKo"] },
         red: { color: "var(--color-red)", limit: 9, hands: ["JJ", "99", "AJs", "ATs", "KQs", "KJs", "KTs", "AQo"] },
@@ -227,7 +228,7 @@
         const v1 = 14 - ranks.indexOf(r1), v2 = 14 - ranks.indexOf(r2);
         const handStr = (v1===v2) ? r1+r1 : (v1>v2 ? r1+r2 : r2+r1) + (s1===s2 ? 's' : 'o');
 
-        // 勝率(Equity)
+        // Equity計算
         let eq = 0;
         let boardCards = ['b1','b2','b3','b4','b5'].map(id => usedCards[id]).filter(v => v);
         let boardVals = boardCards.map(c => 14 - ranks.indexOf(c.split('-')[1]));
@@ -248,15 +249,15 @@
         }
         document.getElementById('eq-val').innerText = Math.min(Math.max(eq, 2.0), 99.9).toFixed(1) + "%";
 
-        // レンジ判定ロジック
-        const currentPosIdx = (0 - btnPosition + playerCount) % playerCount;
-        const behind = playerCount - 1 - currentPosIdx;
+        // ポジション判定
+        const currentHeroPosIdx = (0 - btnPosition + playerCount) % playerCount;
+        const behind = playerCount - 1 - currentHeroPosIdx; 
         let rangeEl = document.getElementById('yokosawa-text');
         
         let resultAction = "FOLD";
         let resultColor = "#888";
 
-        // 各レンジを優先順位（強い順）にチェック
+        // 判定ロジック: 強い順（制限が緩い順）にチェックし、該当ハンドがそのポジションでOPEN可能か判定
         const keys = ['blue', 'red', 'yellow', 'green', 'cyan', 'white'];
         for (const key of keys) {
             const rule = yokosawa_rules[key];
@@ -268,7 +269,7 @@
                     resultAction = "FOLD";
                     resultColor = "#888";
                 }
-                break; // ハンドが属する最初のレンジで判定を確定
+                break; // ハンドを見つけたら終了（Q9などは最初に強いレンジとして判定されるべき）
             }
         }
 
