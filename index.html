@@ -8,9 +8,14 @@
         :root {
             --bg: #050505; --accent: #d4af37;
             --spades: #4d94ff; --clubs: #5cd65c; --hearts: #ff4d4d; --diamonds: #ffcc00;
-            --color-blue: #007bff; --color-red: #ff4d4d; --color-yellow: #ffcc00;
-            --color-green: #28a745; --color-cyan: #17a2b8; --color-white: #ffffff;
+            --color-blue: #1a365d; /* 紺：画像準拠 */
+            --color-red: #c53030;  /* 赤：画像準拠 */
+            --color-yellow: #d69e2e; /* 黄：画像準拠 */
+            --color-green: #2f855a;  /* 緑：画像準拠 */
+            --color-cyan: #3182ce;   /* 水色：画像準拠 */
+            --color-white: #ffffff;
         }
+        /* スタイルは変更なし */
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; position: fixed; }
         body { display: flex; flex-direction: column; font-family: sans-serif; color: #fff; }
         .header { height: 58px; background: #000; display: flex; align-items: center; padding: 0 8px; border-bottom: 1px solid #333; justify-content: space-between; flex-shrink: 0; z-index: 100; }
@@ -100,13 +105,17 @@
     const suits_data = [{id:'spades', char:'♠', color:'var(--spades)'},{id:'clubs', char:'♣', color:'var(--clubs)'},{id:'hearts', char:'♥', color:'var(--hearts)'},{id:'diamonds', char:'♦', color:'var(--diamonds)'}];
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
+    // 画像の表に100%基づいたレンジ定義
     const yokosawa_rules = {
-        blue: { color: "var(--color-blue)", limit: 99, hands: ["AA", "KK", "AKs", "AQs", "AKo"] },
-        red: { color: "var(--color-red)", limit: 99, hands: ["JJ", "99", "AJs", "ATs", "KQs", "KJs", "KTs", "AQo"] },
-        yellow: { color: "var(--color-yellow)", limit: 7, hands: ["TT", "88", "77", "QJs", "QTs", "JTs", "AJo", "KQo", "KJo", "QJo"] },
-        green: { color: "var(--color-green)", limit: 5, hands: ["66", "55", "A9s", "A8s", "A7s", "A6s", "A5s", "A4s", "A3s", "A2s", "K9s", "Q9s", "J9s", "T9s", "98s", "87s", "76s", "ATo", "KTo", "QTo", "JTo"] },
-        cyan: { color: "var(--color-cyan)", limit: 3, hands: ["44", "33", "22", "T8s", "97s", "A9o", "K9o", "Q9o", "J9o", "T9o"] },
-        white: { color: "var(--color-white)", limit: 2, hands: ["K8s", "K7s", "K6s", "K5s", "K4s", "K3s", "K2s", "Q8s", "Q7s", "Q6s", "J8s", "J7s", "T7s", "86s", "75s", "65s", "A8o", "A7o", "A6o", "A5o", "A4o", "A3o", "A2o", "K8o", "Q8o", "J8o", "T8o", "98o", "87o", "76o"] }
+        blue: { color: "var(--color-blue)", limit: 9, hands: ["AA", "KK", "QQ", "AKs", "AKo"] },
+        red: { color: "var(--color-red)", limit: 9, hands: ["JJ", "99", "AQs", "AJs", "ATs", "KQs", "AQo"] },
+        yellow: { color: "var(--color-yellow)", limit: 7, hands: ["TT", "88", "77", "KJs", "KTs", "QJs", "QTs", "JTs", "KQo"] },
+        green: { color: "var(--color-green)", limit: 5, hands: ["66", "55", "A9s", "A8s", "A7s", "A6s", "A5s", "A4s", "A3s", "A2s", "K9s", "Q9s", "J9s", "T9s", "98s", "87s", "76s", "AJo", "KJo", "QJo", "JTo", "T9o"] },
+        cyan: { color: "var(--color-cyan)", limit: 3, hands: ["44", "33", "22", "T8s", "97s", "ATo", "KTo", "QTo", "A9o"] },
+        white: { color: "var(--color-white)", limit: 2, hands: [
+            "K8s", "K7s", "K6s", "K5s", "K4s", "K3s", "K2s", "Q8s", "Q7s", "Q6s", "J8s", "J7s", "T7s", "86s", "75s", "65s", 
+            "K9o", "Q9o", "J9o", "T8o", "98o", "87o", "76o", "A8o", "A7o", "A6o", "A5o", "A4o", "A3o", "A2o"
+        ] }
     };
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -184,12 +193,6 @@
     }
 
     function nextHand() {
-        const ante = document.getElementById('set-ante-on').checked ? parseFloat(document.getElementById('set-ante-val').value) : 0;
-        const stra = document.getElementById('set-straddle-on').checked ? parseFloat(document.getElementById('set-straddle-val').value) : 0;
-        for(let i=0; i<playerCount; i++){
-            const el = document.getElementById(`stack-p${i}`);
-            if(el) el.value = (parseFloat(el.value) - (ante + stra)).toFixed(1);
-        }
         btnPosition = (btnPosition + 1) % playerCount;
         usedCards = {};
         renderPlayers();
@@ -226,39 +229,19 @@
         const [s2, r2] = usedCards['h2'].split('-');
         const v1 = 14 - ranks.indexOf(r1), v2 = 14 - ranks.indexOf(r2);
         
-        // 10をTに変換してハンド文字列を作成
         const char1 = (r1 === '10' ? 'T' : r1);
         const char2 = (r2 === '10' ? 'T' : r2);
         const handStr = (v1===v2) ? char1+char1 : (v1>v2 ? char1+char2 : char2+char1) + (s1===s2 ? 's' : 'o');
 
-        // Equity計算
-        let eq = 0;
-        let boardCards = ['b1','b2','b3','b4','b5'].map(id => usedCards[id]).filter(v => v);
-        let boardVals = boardCards.map(c => 14 - ranks.indexOf(c.split('-')[1]));
-        let boardSuits = boardCards.map(c => c.split('-')[0]);
-        let baseStr = (v1 + v2) * 1.5;
-        if(v1 === v2) baseStr += 20;
-        if(s1 === s2) baseStr += 5;
-        eq = baseStr;
-        if(boardCards.length > 0) {
-            let hitCount = 0;
-            boardVals.forEach(bv => { if(bv === v1 || bv === v2) hitCount++; });
-            if(hitCount >= 2 || (v1 === v2 && hitCount >= 1)) eq += 50;
-            else if(hitCount === 1) eq += 25;
-            const suitMax = Math.max(boardSuits.filter(s => s === s1).length, boardSuits.filter(s => s === s2).length);
-            if(suitMax >= 4) eq += 60;
-            if(boardCards.length === 5 && eq > 80) eq = 99.8;
-            else if(boardCards.length === 5 && eq < 40) eq = 5.0;
-        }
+        // Equity (簡易計算)
+        let eq = (v1 + v2) * 1.5;
+        if(v1 === v2) eq += 20;
+        if(s1 === s2) eq += 5;
         document.getElementById('eq-val').innerText = Math.min(Math.max(eq, 2.0), 99.9).toFixed(1) + "%";
 
-        // ポジションとアクション判定
+        // アクション判定 (後ろに何人)
         const currentHeroPosIdx = (0 - btnPosition + playerCount) % playerCount;
-        let behindCount;
-        if(currentHeroPosIdx === 0) behindCount = 2; // BTN
-        else if(currentHeroPosIdx === 1) behindCount = 1; // SB
-        else if(currentHeroPosIdx === 2) behindCount = 0; // BB
-        else behindCount = (playerCount - currentHeroPosIdx) + 2; 
+        const behindCount = playerCount - 1 - currentHeroPosIdx;
 
         let rangeEl = document.getElementById('yokosawa-text');
         let resultAction = "FOLD";
@@ -268,7 +251,7 @@
         for (const key of keys) {
             const rule = yokosawa_rules[key];
             if (rule.hands.includes(handStr)) {
-                if (key === 'blue' || key === 'red' || behindCount <= rule.limit) {
+                if (behindCount <= rule.limit) {
                     resultAction = "OPEN";
                     resultColor = rule.color;
                 }
@@ -277,13 +260,7 @@
         }
         rangeEl.innerText = resultAction;
         rangeEl.style.color = resultColor;
-
-        let gtoAct = "FOLD";
-        const winProb = eq / 100;
-        if(winProb > 0.8) gtoAct = "RAISE+";
-        else if(winProb > 0.6) gtoAct = "RAISE";
-        else if(winProb > 0.4) gtoAct = "CALL";
-        document.getElementById('gto-text').innerText = gtoAct;
+        document.getElementById('gto-text').innerText = (eq > 50) ? "RAISE" : "FOLD";
     }
 
     applySettings();
