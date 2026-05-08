@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, landscape-primary">
+    <title>BlackJoker Poker Strategy Pro</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --table-gray: #232323;
+            --table-border: #3a3a3a;
+            --accent-gold: #d4af37;
+            --text-main: #e0e0e0;
+            
+            /* 4-Color Deck */
+            --color-spades: #4d94ff;   /* Blue */
+            --color-hearts: #ff4d4d;   /* Red */
+            --color-clubs: #5cd65c;    /* Green */
+            --color-diamonds: #ffcc00; /* Yellow */
+        }
+
+        body {
+            margin: 0; padding: 0; background: var(--bg-dark);
+            color: var(--text-main); font-family: 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden; display: flex; height: 100vh;
+        }
+
+        /* Side Navigation */
+        .sidebar {
+            width: 220px; background: #111; border-right: 1px solid #222;
+            padding: 15px; display: flex; flex-direction: column; z-index: 100;
+        }
+        .sidebar h2 { color: var(--accent-gold); font-size: 1.2rem; margin-top: 0; }
+        .config-item { margin-bottom: 15px; font-size: 0.85rem; }
+        .config-item label { display: block; margin-bottom: 4px; color: #888; }
+        .config-item input { 
+            width: 100%; background: #222; border: 1px solid #444; 
+            color: #fff; padding: 5px; border-radius: 4px; 
+        }
+
+        /* Main Game Area */
+        .game-viewport {
+            flex-grow: 1; position: relative;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Poker Table */
+        .poker-table {
+            width: 80%; height: 60%; background: var(--table-gray);
+            border: 12px solid var(--table-border); border-radius: 200px;
+            position: relative; box-shadow: inset 0 0 80px rgba(0,0,0,0.8);
+        }
+
+        /* Cards */
+        .card {
+            width: 48px; height: 70px; background: #fff; border-radius: 4px;
+            color: #000; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-weight: bold;
+            font-size: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .card.spades { color: var(--color-spades); }
+        .card.hearts { color: var(--color-hearts); }
+        .card.clubs { color: var(--color-clubs); }
+        .card.diamonds { color: var(--color-diamonds); }
+        .card.facedown { background: #333; color: #444; border: 1px solid #555; }
+
+        /* Player Slots */
+        .player-slot { position: absolute; width: 110px; display: flex; flex-direction: column; align-items: center; }
+        .player-box {
+            background: rgba(15,15,15,0.9); border: 1px solid #444;
+            padding: 6px; border-radius: 8px; width: 100%; text-align: center;
+        }
+        .hero .player-box { border-color: var(--accent-gold); box-shadow: 0 0 10px rgba(212,175,55,0.3); }
+        
+        .pos-badge { font-size: 0.7rem; font-weight: bold; color: var(--accent-gold); }
+        .stack-val { font-size: 0.95rem; font-weight: bold; border: none; background: transparent; color: #fff; width: 60px; text-align: center; }
+        .bb-val { font-size: 0.7rem; color: #777; }
+
+        /* Positions Around Table */
+        .p-utg { top: -60px; left: 15%; }
+        .p-hj  { top: -80px; left: 50%; transform: translateX(-50%); }
+        .p-co  { top: -60px; right: 15%; }
+        .p-btn { top: 40%; right: -100px; transform: translateY(-50%); }
+        .p-sb  { bottom: -60px; left: 20%; }
+        .hero  { bottom: -80px; left: 50%; transform: translateX(-50%); }
+
+        /* GTO Panel */
+        .gto-panel {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(10, 10, 10, 0.85); border: 1px solid var(--accent-gold);
+            padding: 12px; border-radius: 8px; width: 180px; backdrop-filter: blur(8px);
+        }
+        .gto-title { font-size: 0.7rem; color: #888; margin-bottom: 8px; border-bottom: 1px solid #333; }
+        .win-rate { font-size: 1.6rem; font-weight: bold; color: var(--color-clubs); display: block; }
+        
+        .strat-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 8px 0; background: #333; }
+        .f-part { background: #555; }
+        .c-part { background: var(--color-spades); }
+        .r-part { background: var(--color-hearts); }
+
+        .btn-action {
+            margin-top: 10px; background: var(--accent-gold); color: #000; border: none;
+            padding: 8px; border-radius: 4px; font-weight: bold; width: 100%; cursor: pointer;
+        }
+
+        /* Community Cards */
+        .board-container {
+            position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+            display: flex; gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar">
+    <h2>Strategy Pro</h2>
+    <div class="config-item">
+        <label>Blind / Ante</label>
+        <div style="display:flex; gap:5px;">
+            <input type="number" id="sb-input" value="1">
+            <input type="number" id="bb-input" value="2" onchange="recalcAllBB()">
+        </div>
+    </div>
+    <div class="config-item">
+        <label>Settings</label>
+        <div style="font-size: 0.8rem;">
+            <input type="checkbox" id="ante-on"> Ante (12.5%)<br>
+            <input type="checkbox" id="straddle-on"> Straddle
+        </div>
+    </div>
+    <button class="btn-action" style="background:#333; color:#fff;" onclick="rotatePositions()">Next Hand (Rotate)</button>
+</aside>
+
+<main class="game-viewport">
+    <div class="poker-table">
+        <!-- Pot Display -->
+        <div style="position:absolute; top:20%; left:50%; transform:translateX(-50%); color:var(--accent-gold); font-weight:bold;">
+            POT: $<span id="pot-total">15.0</span>
+        </div>
+
+        <!-- Board -->
+        <div class="board-container">
+            <div class="card spades"><div>10</div><div>♠</div></div>
+            <div class="card hearts"><div>J</div><div>♥</div></div>
+            <div class="card spades"><div>Q</div><div>♠</div></div>
+            <div class="card facedown">?</div>
+            <div class="card facedown">?</div>
+        </div>
+
+        <!-- Players -->
+        <div class="player-slot p-utg">
+            <div class="player-box">
+                <span class="pos-badge">UTG</span>
+                <input type="number" class="stack-val" value="200" oninput="updateSingleBB(this)">
+                <div class="bb-val">100 bb</div>
+            </div>
+        </div>
+
+        <div class="player-slot p-hj">
+            <div class="player-box">
+                <span class="pos-badge">HJ</span>
+                <input type="number" class="stack-val" value="250" oninput="updateSingleBB(this)">
+                <div class="bb-val">125 bb</div>
+            </div>
+        </div>
+
+        <div class="player-slot p-btn">
+            <div style="position:absolute; left:-25px; top:10px; background:#eee; color:#000; border-radius:50%; width:20px; height:20px; font-size:0.7rem; text-align:center; line-height:20px; font-weight:bold;">D</div>
+            <div class="player-box">
+                <span class="pos-badge">BTN</span>
+                <input type="number" class="stack-val" value="180" oninput="updateSingleBB(this)">
+                <div class="bb-val">90 bb</div>
+            </div>
+        </div>
+
+        <!-- Hero (You) -->
+        <div class="player-slot hero">
+            <div style="display:flex; gap:4px; margin-bottom:8px;">
+                <div class="card clubs"><div>K</div><div>♣</div></div>
+                <div class="card diamonds"><div>A</div><div>♦</div></div>
+            </div>
+            <div class="player-box">
+                <span class="pos-badge">HERO (BB)</span>
+                <input type="number" class="stack-val" value="400" oninput="updateSingleBB(this)">
+                <div class="bb-val">200 bb</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GTO Stats Panel -->
+    <div class="gto-panel">
+        <div class="gto-title">EQUITY vs RANGE</div>
+        <span class="win-rate">58.4%</span>
+        
+        <div class="gto-title" style="margin-top:10px;">GTO ACTION</div>
+        <div class="strat-bar">
+            <div class="f-part" style="width: 10%;"></div>
+            <div class="c-part" style="width: 25%;"></div>
+            <div class="r-part" style="width: 65%;"></div>
+        </div>
+        <div style="font-size:0.75rem;">
+            <span style="color:var(--color-hearts)">RAISE</span> to 3.5bb<br>
+            <span style="color:#888;">EV: +2.4bb</span>
+        </div>
+        <button class="btn-action" onclick="simulateGTO()">Calculate GTO</button>
+    </div>
+</main>
+
+<script>
+    // BB換算のリアルタイム計算
+    function updateSingleBB(input) {
+        const bbSize = parseFloat(document.getElementById('bb-input').value) || 1;
+        const stackValue = parseFloat(input.value) || 0;
+        const bbDisplay = input.nextElementSibling;
+        bbDisplay.innerText = (stackValue / bbSize).toFixed(1) + " bb";
+    }
+
+    function recalcAllBB() {
+        const inputs = document.querySelectorAll('.stack-val');
+        inputs.forEach(input => updateSingleBB(input));
+    }
+
+    // GTO計算（シミュレーション・デモ）
+    function simulateGTO() {
+        const winRateElement = document.querySelector('.win-rate');
+        winRateElement.innerText = "Calculating...";
+        
+        setTimeout(() => {
+            const randomWin = (Math.random() * 40 + 30).toFixed(1);
+            winRateElement.innerText = randomWin + "%";
+            // 実際はここでレンジ表を検索するロジックを走らせる
+        }, 800);
+    }
+
+    // ポジション回転
+    function rotatePositions() {
+        console.log("Rotating dealer button and positions...");
+        // ポジション名や状態を配列で回す処理をここに記述
+    }
+</script>
+
+</body>
+</html>
