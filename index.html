@@ -101,8 +101,8 @@
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
     const yokosawa_rules = {
-        blue: { color: "var(--color-blue)", limit: 9, hands: ["AA", "KK", "AKs", "AQs", "AKo"] },
-        red: { color: "var(--color-red)", limit: 9, hands: ["JJ", "99", "AJs", "ATs", "KQs", "KJs", "KTs", "AQo"] },
+        blue: { color: "var(--color-blue)", limit: 99, hands: ["AA", "KK", "AKs", "AQs", "AKo"] },
+        red: { color: "var(--color-red)", limit: 99, hands: ["JJ", "99", "AJs", "ATs", "KQs", "KJs", "KTs", "AQo"] },
         yellow: { color: "var(--color-yellow)", limit: 7, hands: ["TT", "88", "77", "QJs", "QTs", "JTs", "AJo", "KQo", "KJo", "QJo"] },
         green: { color: "var(--color-green)", limit: 5, hands: ["66", "55", "A9s", "A8s", "A7s", "A6s", "A5s", "A4s", "A3s", "A2s", "K9s", "Q9s", "J9s", "T9s", "98s", "87s", "76s", "ATo", "KTo", "QTo", "JTo"] },
         cyan: { color: "var(--color-cyan)", limit: 3, hands: ["44", "33", "22", "T8s", "97s", "A9o", "K9o", "Q9o", "J9o", "T9o"] },
@@ -225,9 +225,13 @@
         const [s1, r1] = usedCards['h1'].split('-');
         const [s2, r2] = usedCards['h2'].split('-');
         const v1 = 14 - ranks.indexOf(r1), v2 = 14 - ranks.indexOf(r2);
-        const handStr = (v1===v2) ? r1+r1 : (v1>v2 ? r1+r2 : r2+r1) + (s1===s2 ? 's' : 'o');
+        
+        // 10をTに変換してハンド文字列を作成
+        const char1 = (r1 === '10' ? 'T' : r1);
+        const char2 = (r2 === '10' ? 'T' : r2);
+        const handStr = (v1===v2) ? char1+char1 : (v1>v2 ? char1+char2 : char2+char1) + (s1===s2 ? 's' : 'o');
 
-        // Equity
+        // Equity計算
         let eq = 0;
         let boardCards = ['b1','b2','b3','b4','b5'].map(id => usedCards[id]).filter(v => v);
         let boardVals = boardCards.map(c => 14 - ranks.indexOf(c.split('-')[1]));
@@ -248,15 +252,13 @@
         }
         document.getElementById('eq-val').innerText = Math.min(Math.max(eq, 2.0), 99.9).toFixed(1) + "%";
 
-        // ポジション定義修正: 「自分の後に行動できるプレイヤーの数」
-        // BTN(0)の場合: SB(1), BB(2) の2人
-        // CO(total-1)の場合: BTN, SB, BB の3人
+        // ポジションとアクション判定
         const currentHeroPosIdx = (0 - btnPosition + playerCount) % playerCount;
         let behindCount;
         if(currentHeroPosIdx === 0) behindCount = 2; // BTN
         else if(currentHeroPosIdx === 1) behindCount = 1; // SB
         else if(currentHeroPosIdx === 2) behindCount = 0; // BB
-        else behindCount = (playerCount - currentHeroPosIdx) + 2; // UTG, HJ, CO系
+        else behindCount = (playerCount - currentHeroPosIdx) + 2; 
 
         let rangeEl = document.getElementById('yokosawa-text');
         let resultAction = "FOLD";
@@ -266,8 +268,6 @@
         for (const key of keys) {
             const rule = yokosawa_rules[key];
             if (rule.hands.includes(handStr)) {
-                // 紺(blue)・赤(red)は常にOPEN(limit 9以上)
-                // 他はbehindCountがlimit以下ならOPEN
                 if (key === 'blue' || key === 'red' || behindCount <= rule.limit) {
                     resultAction = "OPEN";
                     resultColor = rule.color;
@@ -275,7 +275,6 @@
                 break;
             }
         }
-
         rangeEl.innerText = resultAction;
         rangeEl.style.color = resultColor;
 
