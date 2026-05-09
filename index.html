@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <!-- user-scalable=no を追加し、ズームを禁止 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PokerIndex-Pro</title>
     <style>
@@ -11,7 +12,13 @@
             --color-blue: #000080; --color-red: #ff4d4d; --color-yellow: #ffcc00;
             --color-green: #5cd65c; --color-cyan: #3182ce; --color-white: #ffffff;
         }
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; position: fixed; font-family: sans-serif; color: #fff; }
+        
+        /* touch-action: manipulation でダブルタップズームを抑制し、ブラウザの標準ズームを無効化 */
+        html, body { 
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; 
+            background: #000; position: fixed; font-family: sans-serif; color: #fff;
+            touch-action: none; /* 全てのジェスチャー（ズーム含む）を無効化 */
+        }
         
         .header { height: 75px; background: #000; display: flex; align-items: center; padding: 0 8px; border-bottom: 1px solid #333; justify-content: space-between; z-index: 1000; }
         .header-left { display: flex; flex-direction: column; min-width: 180px; }
@@ -42,7 +49,6 @@
         .c-hearts { color: var(--hearts) !important; background: #fff; border: 1px solid #fff; }
         .c-diamonds { color: var(--diamonds) !important; background: #fff; border: 1px solid #fff; }
 
-        /* モーダルの修正：左右のパディングを減らし、カードが端まで収まるように調整 */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; }
         .modal-content { background: #1a1a1a; padding: 10px 5px; border-radius: 10px; border: 1px solid #444; width: 98%; max-width: 650px; }
         .suit-row { display: grid; grid-template-columns: repeat(13, 1fr); gap: 1px; margin-bottom: 4px; width: 100%; }
@@ -102,6 +108,18 @@
 </div>
 
 <script>
+    // iOS等でダブルタップズームを完全に防ぐためのスクリプト
+    document.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) e.preventDefault();
+        lastTouchEnd = now;
+    }, false);
+
     let usedCards = {};
     let playerCount = 6;
     let btnPosition = 0;
@@ -221,7 +239,6 @@
         renderPlayers();
     }
 
-    // 正確な役判定ロジック
     function evaluateHandLogic(cards) {
         const rVals = cards.map(c => c.rankVal).sort((a, b) => b - a);
         const suits = cards.map(c => c.suit);
@@ -271,7 +288,6 @@
         for(let i=0; i<playerCount; i++) if(!foldedPlayers[i]) activeCount++;
         document.getElementById('active-count').innerText = activeCount;
 
-        // START-EQ
         let startEqVal = 0;
         if(start_win_rates[handStr]) {
             const [w2, w6, w10] = start_win_rates[handStr];
@@ -281,7 +297,6 @@
         }
         document.getElementById('start-eq').innerText = startEqVal.toFixed(1) + "%";
 
-        // GTOロジック計算用 (内部処理として保持)
         let internalEq = startEqVal;
         if(board.length >= 3) {
             const res = evaluateHandLogic([h1, h2, ...board]);
@@ -291,7 +306,6 @@
             internalEq = (res.rank >= 4) ? currentEquity : currentEquity * Math.pow(0.85, activeCount - 1);
         }
 
-        // RANGE
         const heroPosIdx = (0 - btnPosition + playerCount) % playerCount;
         let countToBB = (heroPosIdx === 0) ? 3 : (heroPosIdx === 1) ? 2 : (heroPosIdx === 2) ? 1 : (playerCount - heroPosIdx) + 2; 
         let resultAction = "FOLD", resultColor = "#888";
@@ -305,7 +319,6 @@
         const ytx = document.getElementById('yokosawa-text');
         ytx.innerText = resultAction; ytx.style.color = resultColor;
 
-        // GTO 判断
         const breakEven = (100 / activeCount); 
         const gtoText = document.getElementById('gto-text');
         if (internalEq > breakEven * 1.6) { gtoText.innerText = "RAISE"; gtoText.style.color = "var(--color-green)"; }
