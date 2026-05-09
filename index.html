@@ -100,14 +100,13 @@
     const suits_data = [{id:'spades', char:'♠', color:'var(--spades)'},{id:'clubs', char:'♣', color:'var(--clubs)'},{id:'hearts', char:'♥', color:'var(--hearts)'},{id:'diamonds', char:'♦', color:'var(--diamonds)'}];
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
-    // ハンドレンジ定義
     const yokosawa_rules = {
         blue:   { color: "var(--color-blue)",   limit: 9, hands: ["AA", "AKs", "AKo", "KK", "QQ"] },
         red:    { color: "var(--color-red)",    limit: 9, hands: ["AQs", "AJs", "ATs", "KQs", "AQo", "JJ", "TT", "99"] },
         yellow: { color: "var(--color-yellow)", limit: 7, hands: ["KJs", "QJs", "JTs", "KQo", "AJo", "88", "77"] },
         green:  { color: "var(--color-green)",  limit: 5, hands: ["A9s", "A8s", "A7s", "A6s", "A5s", "A4s", "A3s", "A2s", "KTs", "K9s", "T9s", "QTs", "KJo", "ATo", "66", "55"] },
         cyan:   { color: "var(--color-cyan)",   limit: 3, hands: ["Q9s", "J9s", "T8s", "98s", "QJo", "KTo", "JTo", "A9o", "44", "33", "22"] },
-        white:  { color: "var(--color-white)",  limit: 2, hands: ["K8s", "K7s", "K6s", "K5s", "K4s", "K3s", "K2s", "Q8s", "Q7s", "Q6s", "J8s", "J7s", "QTo", "K9o", "Q9o", "J9o", "T9o", "97s", "87s", "76s", "65s", "A8o", "A7o"] }
+        white:  { color: "var(--color-white)",  limit: 0, hands: ["K8s", "K7s", "K6s", "K5s", "K4s", "K3s", "K2s", "Q8s", "Q7s", "Q6s", "J8s", "J7s", "QTo", "K9o", "Q9o", "J9o", "T9o", "97s", "87s", "76s", "65s", "A8o", "A7o"] }
     };
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -215,30 +214,36 @@
         const char1 = (r1 === '10' ? 'T' : r1), char2 = (r2 === '10' ? 'T' : r2);
         const handStr = (v1===v2) ? char1+char1 : (v1>v2 ? char1+char2 : char2+char1) + (s1===s2 ? 's' : 'o');
 
-        // Equity 簡易
         let eq = (v1 + v2) * 1.5 + (v1 === v2 ? 20 : 0) + (s1 === s2 ? 5 : 0);
         document.getElementById('eq-val').innerText = Math.min(Math.max(eq, 2.0), 99.9).toFixed(1) + "%";
 
-        // --- ロジック修正: HeroからBBまでの人数をカウント ---
+        // ポジション判定
         const heroPosIdx = (0 - btnPosition + playerCount) % playerCount;
+        const posName = getPosName(heroPosIdx, playerCount);
+        
+        // 後ろの人数（Hero含めてBBまで）
         let countToBB;
-        if (heroPosIdx === 0) countToBB = 3;      // BTN (BTN, SB, BBの3人)
-        else if (heroPosIdx === 1) countToBB = 2; // SB (SB, BBの2人)
-        else if (heroPosIdx === 2) countToBB = 1; // BB (BBの1人)
-        else countToBB = (playerCount - heroPosIdx) + 2; // 他
+        if (heroPosIdx === 0) countToBB = 3;      // BTN
+        else if (heroPosIdx === 1) countToBB = 2; // SB
+        else if (heroPosIdx === 2) countToBB = 1; // BB
+        else countToBB = (playerCount - heroPosIdx) + 2; 
         
         let resultAction = "FOLD", resultColor = "#888";
+        
         for (const key in yokosawa_rules) {
             const rule = yokosawa_rules[key];
             if (rule.hands.includes(handStr)) {
-                // ホワイトの「2人以下(SB,BB)」という定義をボタン(3人)まで許容する調整
-                let effectiveLimit = rule.limit;
-                if (key === 'white' && effectiveLimit === 2) effectiveLimit = 3;
-                if (key === 'cyan' && effectiveLimit === 3) effectiveLimit = 3; // 水色は定義通り3人(BTN)まで
-                
-                if (countToBB <= effectiveLimit) { 
-                    resultAction = "OPEN"; 
-                    resultColor = rule.color; 
+                // ホワイト(white)のみ特別判定: BTN, SB, BBの時にオープン
+                if (key === 'white') {
+                    if (posName === "BTN" || posName === "SB" || posName === "BB") {
+                        resultAction = "OPEN";
+                        resultColor = rule.color;
+                    }
+                } 
+                // その他は後ろの人数で判定
+                else if (countToBB <= rule.limit) {
+                    resultAction = "OPEN";
+                    resultColor = rule.color;
                 }
                 break;
             }
