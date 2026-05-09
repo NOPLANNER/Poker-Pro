@@ -31,14 +31,13 @@
         .main-view { flex-grow: 1; position: relative; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); height: calc(100vh - 75px); }
         .poker-table { position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%); width: 92%; height: 75%; border: 3px solid #2a2a2a; border-radius: 200px; background: #080808; }
         
-        /* ボード周辺のデザイン修正 */
-        .board-wrapper { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 50; width: 100%; }
+        .board-wrapper { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 50; width: 100%; }
         .board-container { display: flex; gap: 5px; }
         
-        /* 役表示エリア */
-        .hand-analysis { background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; font-size: 0.65rem; text-align: center; border: 1px solid #333; min-width: 150px; }
-        .current-hand-name { color: var(--accent); font-weight: bold; margin-bottom: 2px; }
-        .draw-info { color: #aaa; font-size: 0.55rem; }
+        /* 解析表示エリア（少し大きく調整） */
+        .hand-analysis { background: rgba(0,0,0,0.85); padding: 8px 15px; border-radius: 8px; font-size: 0.75rem; text-align: center; border: 1px solid var(--accent); min-width: 180px; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .current-hand-name { color: var(--accent); font-weight: bold; margin-bottom: 4px; font-size: 0.85rem; }
+        .draw-info { color: #fff; font-size: 0.7rem; font-weight: bold; }
 
         .player { position: absolute; width: 72px; text-align: center; z-index: 100; transform: translate(-50%, -50%); }
         .player-box { background: rgba(0,0,0,0.95); border: 1px solid #444; border-radius: 5px; padding: 5px; font-size: 0.6rem; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
@@ -93,10 +92,9 @@
             <div class="slot" id="b4" onclick="openPicker('b4')">?</div>
             <div class="slot" id="b5" onclick="openPicker('b5')">?</div>
         </div>
-        <!-- 役解析表示エリア -->
         <div id="analysis-box" class="hand-analysis" style="display:none;">
-            <div id="current-hand-name" class="current-hand-name">High Card</div>
-            <div id="draw-info" class="draw-info"></div>
+            <div id="current-hand-name" class="current-hand-name">--</div>
+            <div id="draw-info" class="draw-info">--</div>
         </div>
     </div>
     <div id="player-container"></div>
@@ -115,7 +113,7 @@
 <div id="picker-modal" class="modal">
     <div class="modal-content">
         <div id="deck-container"></div>
-        <button onclick="closeModal('picker-modal')" style="width:100%; padding:10px; margin-top:10px; background:#444; border:none; color:#fff; border-radius:5px;">Cancel</button>
+        <button onclick="cancelPicker()" style="width:100%; padding:10px; margin-top:10px; background:#822; border:none; color:#fff; border-radius:5px; font-weight:bold;">Cancel (Clear Card)</button>
     </div>
 </div>
 
@@ -135,6 +133,7 @@
     let playerCount = 6;
     let btnPosition = 0;
     let foldedPlayers = {}; 
+    let currentTargetId = null; // 現在選択中のスロットID
 
     const handNames = ["High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House", "Four of a Kind", "Straight Flush"];
 
@@ -155,6 +154,7 @@
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
     function openPicker(id) {
+        currentTargetId = id;
         const container = document.getElementById('deck-container');
         container.innerHTML = '';
         suits_data.forEach(suit => {
@@ -178,6 +178,18 @@
             container.appendChild(row);
         });
         openModal('picker-modal');
+    }
+
+    // キャンセル時にブランク（初期状態）にする関数
+    function cancelPicker() {
+        if (currentTargetId) {
+            const slot = document.getElementById(currentTargetId);
+            slot.className = 'slot';
+            slot.innerHTML = '?';
+            delete usedCards[currentTargetId];
+        }
+        closeModal('picker-modal');
+        calcLogic();
     }
 
     function applySettings() {
@@ -259,34 +271,24 @@
         const counts = {}; rVals.forEach(v => counts[v] = (counts[v] || 0) + 1);
         const freq = Object.entries(counts).map(([val, count]) => ({ val: parseInt(val), count })).sort((a, b) => b.count - a.count || b.val - a.val);
         const suitCounts = {}; suits.forEach(s => suitCounts[s] = (suitCounts[s] || 0) + 1);
-        
         const flushSuit = Object.keys(suitCounts).find(s => suitCounts[s] >= 5);
         const isFlush = !!flushSuit;
-        
         const uniqueRanks = [...new Set(rVals)].sort((a, b) => b - a);
         if (uniqueRanks.includes(14)) uniqueRanks.push(1);
         let isStraight = false;
         for (let i = 0; i <= uniqueRanks.length - 5; i++) {
             if (uniqueRanks[i] - uniqueRanks[i + 4] === 4) { isStraight = true; break; }
         }
-
-        // アウツ計算（簡易版）
-        let outs = 0;
-        let drawName = "";
-        
-        // フラッシュドロー
+        let outs = 0; let drawName = "";
         const flushDrawSuit = Object.keys(suitCounts).find(s => suitCounts[s] === 4);
         if (!isFlush && flushDrawSuit) { outs = 9; drawName = "Flush Draw"; }
-        
-        // ストレートドロー
         if (!isStraight) {
             for (let i = 0; i <= uniqueRanks.length - 4; i++) {
                 const diff = uniqueRanks[i] - uniqueRanks[i+3];
-                if (diff === 3) { outs = Math.max(outs, 8); if(outs===8) drawName = "OESD"; } // 両面
-                else if (diff === 4) { outs = Math.max(outs, 4); if(outs===4 && drawName!=="OESD") drawName = "Gutshot"; } // 内側
+                if (diff === 3) { outs = Math.max(outs, 8); if(outs===8) drawName = "OESD"; }
+                else if (diff === 4) { outs = Math.max(outs, 4); if(outs===4 && drawName!=="OESD") drawName = "Gutshot"; }
             }
         }
-
         let rank = 0;
         if (isFlush && isStraight) rank = 8;
         else if (freq[0].count === 4) rank = 7;
@@ -296,12 +298,17 @@
         else if (freq[0].count === 3) rank = 3;
         else if (freq[0].count === 2 && freq[1].count === 2) rank = 2;
         else if (freq[0].count === 2) rank = 1;
-        
         return { rank, outs, drawName };
     }
 
     function calcLogic() {
-        if(!usedCards['h1'] || !usedCards['h2']) return;
+        const h1_used = !!usedCards['h1'], h2_used = !!usedCards['h2'];
+        if(!h1_used || !h2_used) {
+            document.getElementById('analysis-box').style.display = 'none';
+            document.getElementById('start-eq').innerText = "--%";
+            return;
+        }
+
         const parse = (id) => {
             const [s, r] = usedCards[id].split('-');
             return { suit: s, rank: r, rankVal: 14 - ranks_list.indexOf(r) };
@@ -317,24 +324,7 @@
         for(let i=0; i<playerCount; i++) if(!foldedPlayers[i]) activeCount++;
         document.getElementById('active-count').innerText = activeCount;
 
-        // ボード解析の表示
-        if(board.length >= 3) {
-            document.getElementById('analysis-box').style.display = 'block';
-            const res = evaluateHandLogic([h1, h2, ...board]);
-            document.getElementById('current-hand-name').innerText = handNames[res.rank];
-            
-            let drawTxt = "";
-            if(board.length < 5 && res.outs > 0) {
-                const prob = (board.length === 3) ? (res.outs * 4) : (res.outs * 2);
-                drawTxt = `${res.drawName}: ${prob}%`;
-            } else if (board.length < 5 && res.rank < 3) {
-                drawTxt = "No Draw Found";
-            }
-            document.getElementById('draw-info').innerText = drawTxt;
-        } else {
-            document.getElementById('analysis-box').style.display = 'none';
-        }
-
+        // --- 勝率計算 ---
         let startEqVal = 0;
         if(start_win_rates[handStr]) {
             const [w2, w6, w10] = start_win_rates[handStr];
@@ -344,6 +334,28 @@
         }
         document.getElementById('start-eq').innerText = startEqVal.toFixed(1) + "%";
 
+        // --- ボード解析 & 確率表示 ---
+        const analysisBox = document.getElementById('analysis-box');
+        const handNameEl = document.getElementById('current-hand-name');
+        const drawInfoEl = document.getElementById('draw-info');
+        
+        analysisBox.style.display = 'block';
+        if(board.length === 0) {
+            handNameEl.innerText = "Pre-Flop";
+            drawInfoEl.innerText = `Win Rate: ${startEqVal.toFixed(1)}%`;
+        } else {
+            const res = evaluateHandLogic([h1, h2, ...board]);
+            handNameEl.innerText = handNames[res.rank];
+            
+            if(board.length < 5 && res.outs > 0) {
+                const prob = (board.length === 3) ? (res.outs * 4) : (res.outs * 2);
+                drawInfoEl.innerText = `${res.drawName}: ${prob}%`;
+            } else {
+                drawInfoEl.innerText = "No Draw Found";
+            }
+        }
+
+        // --- GTO / Rangeロジック ---
         const heroPosIdx = (0 - btnPosition + playerCount) % playerCount;
         let countToBB = (heroPosIdx === 0) ? 3 : (heroPosIdx === 1) ? 2 : (heroPosIdx === 2) ? 1 : (playerCount - heroPosIdx) + 2; 
         let resultAction = "FOLD", resultColor = "#888";
@@ -357,7 +369,6 @@
         document.getElementById('yokosawa-text').innerText = resultAction; 
         document.getElementById('yokosawa-text').style.color = resultColor;
 
-        // GTO判断ロジック（簡易）
         let internalEq = startEqVal;
         if(board.length >= 3) {
             const res = evaluateHandLogic([h1, h2, ...board]);
