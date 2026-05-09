@@ -31,10 +31,10 @@
         .main-view { flex-grow: 1; position: relative; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); height: calc(100vh - 75px); }
         .poker-table { position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%); width: 92%; height: 75%; border: 3px solid #2a2a2a; border-radius: 200px; background: #080808; }
         
-        .board-wrapper { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 50; width: 100%; }
+        /* カードと解析枠のコンテナ：位置を少し下に調整 (45% -> 48%) */
+        .board-wrapper { position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 50; width: 100%; }
         .board-container { display: flex; gap: 5px; }
         
-        /* 解析エリア（ズレ防止のために高さを固定し、透明境界線を設定） */
         .hand-analysis { 
             background: rgba(0,0,0,0.85); 
             padding: 4px 10px; 
@@ -43,7 +43,7 @@
             text-align: center; 
             border: 1px solid transparent; 
             min-width: 140px; 
-            height: 34px; /* 高さを固定してレイアウトの動きを止める */
+            height: 34px; 
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -114,7 +114,7 @@
     <div id="player-container"></div>
 </div>
 
-<!-- Settings/Picker Modals (省略なし) -->
+<!-- Modals -->
 <div id="settings-modal" class="modal">
     <div class="modal-content">
         <h3 style="margin:0 0 10px 0;">Table Settings</h3>
@@ -133,7 +133,6 @@
 </div>
 
 <script>
-    // ブラウザのズーム/スワイプ防止
     document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
     let lastTouchEnd = 0;
     document.addEventListener('touchend', (e) => {
