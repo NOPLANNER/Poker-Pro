@@ -31,13 +31,27 @@
         .main-view { flex-grow: 1; position: relative; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); height: calc(100vh - 75px); }
         .poker-table { position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%); width: 92%; height: 75%; border: 3px solid #2a2a2a; border-radius: 200px; background: #080808; }
         
-        .board-wrapper { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 50; width: 100%; }
+        .board-wrapper { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 50; width: 100%; }
         .board-container { display: flex; gap: 5px; }
         
-        /* 解析表示エリア（微調整：少しコンパクトに） */
-        .hand-analysis { background: rgba(0,0,0,0.85); padding: 6px 12px; border-radius: 6px; font-size: 0.7rem; text-align: center; border: 1px solid var(--accent); min-width: 150px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        .current-hand-name { color: var(--accent); font-weight: bold; margin-bottom: 2px; font-size: 0.8rem; }
-        .draw-info { color: #fff; font-size: 0.65rem; font-weight: bold; }
+        /* 解析エリア（ズレ防止のために高さを固定し、透明境界線を設定） */
+        .hand-analysis { 
+            background: rgba(0,0,0,0.85); 
+            padding: 4px 10px; 
+            border-radius: 6px; 
+            font-size: 0.7rem; 
+            text-align: center; 
+            border: 1px solid transparent; 
+            min-width: 140px; 
+            height: 34px; /* 高さを固定してレイアウトの動きを止める */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: border-color 0.2s;
+        }
+        .hand-analysis.active { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .current-hand-name { color: var(--accent); font-weight: bold; font-size: 0.75rem; line-height: 1.2; }
+        .draw-info { color: #fff; font-size: 0.6rem; font-weight: bold; line-height: 1.2; }
 
         .player { position: absolute; width: 72px; text-align: center; z-index: 100; transform: translate(-50%, -50%); }
         .player-box { background: rgba(0,0,0,0.95); border: 1px solid #444; border-radius: 5px; padding: 5px; font-size: 0.6rem; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
@@ -92,14 +106,15 @@
             <div class="slot" id="b4" onclick="openPicker('b4')">?</div>
             <div class="slot" id="b5" onclick="openPicker('b5')">?</div>
         </div>
-        <div id="analysis-box" class="hand-analysis" style="display:none;">
-            <div id="current-hand-name" class="current-hand-name">--</div>
-            <div id="draw-info" class="draw-info">--</div>
+        <div id="analysis-box" class="hand-analysis">
+            <div id="current-hand-name" class="current-hand-name"></div>
+            <div id="draw-info" class="draw-info"></div>
         </div>
     </div>
     <div id="player-container"></div>
 </div>
 
+<!-- Settings/Picker Modals (省略なし) -->
 <div id="settings-modal" class="modal">
     <div class="modal-content">
         <h3 style="margin:0 0 10px 0;">Table Settings</h3>
@@ -118,10 +133,8 @@
 </div>
 
 <script>
-    document.addEventListener('touchstart', (e) => {
-        if (e.touches.length > 1) e.preventDefault();
-    }, { passive: false });
-    
+    // ブラウザのズーム/スワイプ防止
+    document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
     let lastTouchEnd = 0;
     document.addEventListener('touchend', (e) => {
         const now = (new Date()).getTime();
@@ -136,7 +149,6 @@
     let currentTargetId = null;
 
     const handNames = ["High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House", "Four of a Kind", "Straight Flush"];
-
     const start_win_rates = { "AA": [85.3, 49.2, 31.1], "KK": [82.4, 43.0, 26.1], "QQ": [79.9, 37.9, 22.2], "JJ": [77.5, 33.6, 19.3], "TT": [75.1, 30.0, 17.2], "99": [72.1, 26.6, 15.6], "88": [69.1, 24.0, 14.4], "AKs": [67.0, 31.1, 20.7], "77": [66.2, 21.9, 13.7], "AQs": [66.1, 29.4, 19.3], "AKo": [65.4, 27.9, 17.2], "AJs": [65.4, 27.8, 18.1], "ATs": [64.7, 26.7, 17.3], "AQo": [64.5, 25.9, 15.5], "AJo": [63.6, 24.4, 14.3], "KQs": [63.4, 28.3, 18.6], "66": [63.3, 20.1, 13.1], "A9s": [63.0, 24.2, 15.4], "ATo": [62.9, 23.1, 13.4], "KJs": [62.6, 26.9, 17.6], "A8s": [62.1, 23.3, 14.8], "KTs": [61.9, 25.8, 16.9], "KQo": [61.4, 25.1, 15.1], "A7s": [61.1, 22.5, 14.3], "A9o": [60.9, 20.3, 11.2], "KJo": [60.6, 23.5, 13.9], "QJs": [60.3, 26.1, 17.1], "55": [60.3, 18.5, 12.3], "A8o": [60.1, 19.4, 10.6], "A6s": [60.0, 21.7, 14.0], "K9s": [60.0, 23.2, 14.8], "A5s": [59.9, 22.2, 14.5], "KTo": [59.9, 22.3, 13.1], "QTs": [59.5, 25.2, 16.6], "A7o": [59.1, 18.4, 10.1], "A4s": [58.9, 21.6, 14.2], "K8s": [58.5, 21.3, 13.5], "QJo": [58.2, 22.9, 13.7], "A3s": [58.0, 21.0, 13.9], "K9o": [58.0, 19.5, 10.8], "Q9s": [57.9, 22.5, 14.5], "A6o": [57.8, 17.5, 9.6], "K7s": [57.8, 20.8, 13.2], "A5o": [57.7, 18.0, 10.1], "JTs": [57.5, 24.7, 16.5], "QTo": [57.4, 21.6, 12.9], "A2s": [57.0, 20.4, 13.4], "44": [57.0, 17.3, 12.1], "K6s": [56.8, 20.1, 12.8], "A4o": [56.4, 17.3, 9.8], "K8o": [56.3, 17.4, 9.4], "Q8s": [56.2, 20.7, 13.2], "K5s": [55.8, 19.5, 12.5], "J9s": [55.8, 22.4, 14.6], "A3o": [55.6, 16.7, 9.5], "Q9o": [55.5, 19.0, 10.7], "K7o": [55.4, 16.7, 9.0], "JTo": [55.4, 21.5, 13.1], "K4s": [54.7, 19.0, 12.3], "A2o": [54.6, 16.1, 9.1], "Q7s": [54.5, 19.2, 12.1], "K6o": [54.3, 16.0, 8.6], "T9s": [54.3, 22.5, 14.9], "J8s": [54.2, 20.5, 13.2], "K3s": [53.8, 18.4, 12.1], "Q8o": [53.8, 16.9, 9.2], "Q6s": [53.8, 18.5, 11.7], "33": [53.7, 16.2, 12.0], "J9o": [53.4, 18.7, 10.8], "K5o": [53.3, 15.4, 8.3], "K2s": [52.9, 18.1, 11.9], "Q5s": [52.9, 18.1, 11.6], "T8s": [52.6, 20.6, 13.6], "J7s": [52.4, 18.9, 12.0], "K4o": [52.1, 14.7, 8.0], "Q7o": [51.9, 15.1, 8.0], "Q4s": [51.7, 17.6, 11.3], "J8o": [51.7, 16.8, 9.5], "T9o": [51.7, 18.9, 11.3], "K3o": [51.2, 14.2, 7.8], "Q6o": [51.1, 14.4, 7.6], "98s": [51.1, 20.2, 13.4], "T7s": [51.0, 19.0, 12.4], "J6s": [50.8, 17.4, 11.1], "Q3s": [50.7, 17.0, 11.1], "22": [50.3, 15.5, 12.0], "K2o": [50.2, 13.7, 7.6], "Q5o": [50.2, 13.9, 7.4], "J5s": [50.0, 17.0, 10.8], "T8o": [50.0, 16.9, 9.9], "Q2s": [49.9, 16.6, 10.9], "J7o": [49.9, 14.9, 8.1], "97s": [49.5, 18.9, 12.5], "T6s": [49.2, 17.4, 11.2], "Q4o": [49.0, 13.3, 7.1], "J4s": [49.0, 16.4, 10.6], "98o": [48.4, 16.6, 9.9], "T7o": [48.2, 15.1, 8.6], "87s": [48.2, 18.9, 12.7], "Q3o": [47.9, 12.8, 6.9], "J6o": [47.9, 13.2, 7.0], "J3s": [47.9, 16.0, 10.4], "96s": [47.7, 17.4, 11.4], "T5s": [47.2, 16.0, 10.2], "J5o": [47.1, 12.8, 6.7], "J2s": [47.1, 15.6, 10.2], "Q2o": [47.0, 12.3, 6.8], "97o": [46.7, 15.1, 8.8], "86s": [46.5, 17.6, 11.9], "T4s": [46.4, 15.6, 10.0], "T6o": [46.3, 13.4, 7.3], "J4o": [46.1, 12.3, 6.5], "95s": [45.9, 16.0, 10.3], "76s": [45.7, 18.0, 12.3], "T3s": [45.5, 15.1, 9.8], "87o": [45.5, 15.4, 9.3], "J3o": [45.0, 11.7, 6.3], "96o": [44.9, 13.5, 7.8], "85s": [44.8, 16.3, 10.9], "T2s": [44.7, 14.8, 9.7], "T5o": [44.2, 11.9, 6.4], "J2o": [44.0, 11.3, 6.2], "94s": [43.8, 14.6, 9.4], "75s": [43.8, 16.7, 11.4], "86o": [43.6, 13.9, 8.3], "T4o": [43.4, 11.5, 6.2], "93s": [43.2, 14.3, 9.2], "65s": [43.2, 17.0, 11.9], "95o": [42.9, 12.0, 6.6], "84s": [42.7, 14.8, 9.8], "76o": [42.7, 14.2, 8.8], "T3o": [42.4, 11.0, 6.0], "92s": [42.3, 13.9, 9.1], "74s": [41.8, 15.3, 10.4], "85o": [41.7, 12.4, 7.3], "T2o": [41.5, 10.6, 5.8], "64s": [41.4, 15.9, 11.1], "54s": [41.1, 16.5, 11.7], "83s": [40.8, 13.6, 8.9], "75o": [40.8, 12.8, 7.9], "94o": [40.7, 10.5, 5.6], "82s": [40.3, 13.3, 8.8], "65o": [40.1, 13.3, 8.5], "73s": [40.0, 14.0, 9.3], "93o": [39.9, 10.1, 5.4], "84o": [39.6, 10.8, 6.1], "63s": [39.4, 14.5, 10.0], "53s": [39.3, 15.2, 10.8], "92o": [38.9, 9.6, 5.2], "74o": [38.6, 11.4, 6.8], "72s": [38.1, 12.8, 8.5], "64o": [38.0, 12.0, 7.6], "43s": [38.0, 14.7, 10.3], "54o": [37.9, 12.6, 8.2], "83o": [37.5, 9.5, 5.1], "62s": [37.5, 13.3, 9.1], "52s": [37.5, 14.0, 9.8], "82o": [36.8, 9.1, 4.9], "73o": [36.6, 9.9, 5.7], "42s": [36.3, 13.7, 9.6], "63o": [35.9, 10.6, 6.5], "53o": [35.8, 11.4, 7.3], "32s": [35.1, 13.0, 9.2], "72o": [34.6, 8.6, 4.8], "43o": [34.4, 10.7, 6.8], "62o": [34.0, 9.1, 5.4], "52o": [33.9, 10.0, 6.2], "42o": [32.5, 9.5, 6.0], "32o": [31.2, 8.9, 5.6] };
     const suits_data = [{id:'spades', char:'♠', color:'var(--spades)'},{id:'clubs', char:'♣', color:'var(--clubs)'},{id:'hearts', char:'♥', color:'var(--hearts)'},{id:'diamonds', char:'♦', color:'var(--diamonds)'}];
     const ranks_list = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
@@ -183,8 +195,7 @@
     function cancelPicker() {
         if (currentTargetId) {
             const slot = document.getElementById(currentTargetId);
-            slot.className = 'slot';
-            slot.innerHTML = '?';
+            slot.className = 'slot'; slot.innerHTML = '?';
             delete usedCards[currentTargetId];
         }
         closeModal('picker-modal');
@@ -193,9 +204,7 @@
 
     function applySettings() {
         playerCount = parseInt(document.getElementById('set-players').value);
-        foldedPlayers = {};
-        renderPlayers();
-        closeModal('settings-modal');
+        foldedPlayers = {}; renderPlayers(); closeModal('settings-modal');
     }
 
     function toggleFold(idx) {
@@ -207,8 +216,7 @@
         const container = document.getElementById('player-container');
         container.innerHTML = '';
         for(let i=0; i<playerCount; i++) {
-            const isFolded = !!foldedPlayers[i];
-            const isHero = (i === 0);
+            const isFolded = !!foldedPlayers[i], isHero = (i === 0);
             const p = document.createElement('div'); 
             p.className = 'player' + (isFolded ? ' folded' : '') + (isHero ? ' hero' : '');
             const angle = (i * (360 / playerCount)) + 90;
@@ -260,7 +268,10 @@
         btnPosition = (btnPosition + 1) % playerCount;
         usedCards = {}; foldedPlayers = {};
         document.querySelectorAll('#board .slot').forEach(s => { s.className='slot'; s.innerHTML='?'; });
-        document.getElementById('analysis-box').style.display = 'none';
+        const ab = document.getElementById('analysis-box');
+        ab.classList.remove('active');
+        document.getElementById('current-hand-name').innerText = "";
+        document.getElementById('draw-info').innerText = "";
         renderPlayers();
     }
 
@@ -278,7 +289,7 @@
         for (let i = 0; i <= uniqueRanks.length - 5; i++) {
             if (uniqueRanks[i] - uniqueRanks[i + 4] === 4) { isStraight = true; break; }
         }
-        let outs = 0; let drawName = "";
+        let outs = 0, drawName = "";
         const flushDrawSuit = Object.keys(suitCounts).find(s => suitCounts[s] === 4);
         if (!isFlush && flushDrawSuit) { outs = 9; drawName = "Flush Draw"; }
         if (!isStraight) {
@@ -302,8 +313,13 @@
 
     function calcLogic() {
         const h1_used = !!usedCards['h1'], h2_used = !!usedCards['h2'];
+        const analysisBox = document.getElementById('analysis-box');
+        const handNameEl = document.getElementById('current-hand-name');
+        const drawInfoEl = document.getElementById('draw-info');
+
         if(!h1_used || !h2_used) {
-            document.getElementById('analysis-box').style.display = 'none';
+            analysisBox.classList.remove('active');
+            handNameEl.innerText = ""; drawInfoEl.innerText = "";
             document.getElementById('start-eq').innerText = "--%";
             return;
         }
@@ -332,22 +348,17 @@
         }
         document.getElementById('start-eq').innerText = startEqVal.toFixed(1) + "%";
 
-        const analysisBox = document.getElementById('analysis-box');
-        const handNameEl = document.getElementById('current-hand-name');
-        const drawInfoEl = document.getElementById('draw-info');
-        
         if(board.length === 0) {
-            analysisBox.style.display = 'none'; // プリフロップは非表示
+            analysisBox.classList.remove('active');
+            handNameEl.innerText = ""; drawInfoEl.innerText = "";
         } else {
-            analysisBox.style.display = 'block';
+            analysisBox.classList.add('active');
             const res = evaluateHandLogic([h1, h2, ...board]);
             handNameEl.innerText = handNames[res.rank];
             if(board.length < 5 && res.outs > 0) {
                 const prob = (board.length === 3) ? (res.outs * 4) : (res.outs * 2);
                 drawInfoEl.innerText = `${res.drawName}: ${prob}%`;
-            } else {
-                drawInfoEl.innerText = "No Draw Found";
-            }
+            } else { drawInfoEl.innerText = "No Draw Found"; }
         }
 
         const heroPosIdx = (0 - btnPosition + playerCount) % playerCount;
