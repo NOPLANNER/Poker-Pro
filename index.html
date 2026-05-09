@@ -12,11 +12,12 @@
             --color-green: #2f855a; --color-cyan: #3182ce; --color-white: #ffffff;
         }
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; position: fixed; font-family: sans-serif; color: #fff; }
-        .header { height: 58px; background: #000; display: flex; align-items: center; padding: 0 8px; border-bottom: 1px solid #333; justify-content: space-between; flex-shrink: 0; z-index: 100; }
-        .header-left { display: flex; flex-direction: column; min-width: 140px; }
+        .header { height: 65px; background: #000; display: flex; align-items: center; padding: 0 8px; border-bottom: 1px solid #333; justify-content: space-between; flex-shrink: 0; z-index: 100; }
+        .header-left { display: flex; flex-direction: column; min-width: 160px; }
         .title-logo { font-size: 0.7rem; font-weight: bold; color: var(--accent); }
         .stat-line { font-size: 0.6rem; color: #ccc; font-weight: bold; line-height: 1.4; }
         .stat-label { color: var(--accent); margin-right: 2px; }
+        .realtime-val { color: #5cd65c; font-weight: 900; } /* リアルタイム勝率は緑強調 */
         .action-btn { background: #222; color: #fff; border: 1px solid #444; padding: 6px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
         .btn-next { background: var(--accent) !important; color: #000 !important; border: none !important; }
         .main-view { flex-grow: 1; position: relative; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); }
@@ -28,7 +29,7 @@
         .btn-marker { position: absolute; top: -8px; right: -8px; background: #fff; color: #000; border-radius: 50%; width: 16px; height: 16px; font-weight: bold; line-height: 16px; text-align: center; font-size: 0.6rem; border: 1px solid #000; }
         .fold-toggle { width: 100%; margin-top: 2px; font-size: 0.5rem; padding: 2px; border-radius: 3px; border: none; background: #444; color: #fff; cursor: pointer; }
         .fold-toggle.active { background: #c53030; }
-        .slot { width: 30px; height: 42px; background: #111; border: 1px dashed #444; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem; cursor: pointer; }
+        .slot { width: 30px; height: 42px; background: #111; border: 1px dashed #444; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem; cursor: pointer; overflow: hidden;}
         .c-spades { color: var(--spades); background: #fff; border-style: solid; }
         .c-clubs { color: var(--clubs); background: #fff; border-style: solid; }
         .c-hearts { color: var(--hearts); background: #fff; border-style: solid; }
@@ -46,8 +47,8 @@
     <div class="header-left">
         <div class="title-logo">PokerIndex-Pro</div>
         <div class="stat-line">
-            <div><span class="stat-label">EQ:</span><span id="eq-val" style="color:#fff;">--%</span> | <span class="stat-label">GTO:</span><span id="gto-text">---</span></div>
-            <div><span class="stat-label">RANGE:</span><span id="yokosawa-text" style="font-weight:900;">---</span></div>
+            <div><span class="stat-label">START EQ:</span><span id="eq-val">--%</span> | <span class="stat-label">R-EQ:</span><span id="real-eq" class="realtime-val">--%</span></div>
+            <div><span class="stat-label">NEXT:</span><span id="next-info">--</span> | <span class="stat-label">GTO:</span><span id="gto-text">---</span> | <span class="stat-label">RG:</span><span id="yokosawa-text">---</span></div>
         </div>
     </div>
     <div class="header-center"><button class="action-btn btn-next" onclick="nextHand()">Next Hand</button></div>
@@ -89,16 +90,15 @@
     const suits = [{id:'spades', char:'♠', color:'var(--spades)'},{id:'clubs', char:'♣', color:'var(--clubs)'},{id:'hearts', char:'♥', color:'var(--hearts)'},{id:'diamonds', char:'♦', color:'var(--diamonds)'}];
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
-    // 勝率データベース (ハンド: [2人, 6人, 10人])
     const eqDB = {
         "AA":[85.3,49.2,31.1],"KK":[82.4,43.0,26.1],"QQ":[79.9,37.9,22.2],"JJ":[77.5,33.6,19.3],"TT":[75.1,30.0,17.2],"99":[72.1,26.6,15.6],"88":[69.1,24.0,14.4],"AKs":[67.0,31.1,20.7],"77":[66.2,21.9,13.7],"AQs":[66.1,29.4,19.3],"AKo":[65.4,27.9,17.2],"AJs":[65.4,27.8,18.1],"ATs":[64.7,26.7,17.3],"AQo":[64.5,25.9,15.5],"AJo":[63.6,24.4,14.3],"KQs":[63.4,28.3,18.6],"66":[63.3,20.1,13.1],"A9s":[63.0,24.2,15.4],"ATo":[62.9,23.1,13.4],"KJs":[62.6,26.9,17.6],"A8s":[62.1,23.3,14.8],"KTs":[61.9,25.8,16.9],"KQo":[61.4,25.1,15.1],"A7s":[61.1,22.5,14.3],"A9o":[60.9,20.3,11.2],"KJo":[60.6,23.5,13.9],"QJs":[60.3,26.1,17.1],"55":[60.3,18.5,12.3],"A8o":[60.1,19.4,10.6],"A6s":[60.0,21.7,14.0],"K9s":[60.0,23.2,14.8],"A5s":[59.9,22.2,14.5],"KTo":[59.9,22.3,13.1],"QTs":[59.5,25.2,16.6],"A7o":[59.1,18.4,10.1],"A4s":[58.9,21.6,14.2],"K8s":[58.5,21.3,13.5],"QJo":[58.2,22.9,13.7],"A3s":[58.0,21.0,13.9],"K9o":[58.0,19.5,10.8],"Q9s":[57.9,22.5,14.5],"A6o":[57.8,17.5,9.6],"K7s":[57.8,20.8,13.2],"A5o":[57.7,18.0,10.1],"JTs":[57.5,24.7,16.5],"QTo":[57.4,21.6,12.9],"A2s":[57.0,20.4,13.4],"44":[57.0,17.3,12.1],"K6s":[56.8,20.1,12.8],"A4o":[56.4,17.3,9.8],"K8o":[56.3,17.4,9.4],"Q8s":[56.2,20.7,13.2],"K5s":[55.8,19.5,12.5],"J9s":[55.8,22.4,14.6],"A3o":[55.6,16.7,9.5],"Q9o":[55.5,19.0,10.7],"K7o":[55.4,16.7,9.0],"JTo":[55.4,21.5,13.1],"K4s":[54.7,19.0,12.3],"A2o":[54.6,16.1,9.1],"Q7s":[54.5,19.2,12.1],"K6o":[54.3,16.0,8.6],"T9s":[54.3,22.5,14.9],"J8s":[54.2,20.5,13.2],"K3s":[53.8,18.4,12.1],"Q8o":[53.8,16.9,9.2],"Q6s":[53.8,18.5,11.7],"33":[53.7,16.2,12.0],"J9o":[53.4,18.7,10.8],"K5o":[53.3,15.4,8.3],"K2s":[52.9,18.1,11.9],"Q5s":[52.9,18.1,11.6],"T8s":[52.6,20.6,13.6],"J7s":[52.4,18.9,12.0],"K4o":[52.1,14.7,8.0],"Q7o":[51.9,15.1,8.0],"Q4s":[51.7,17.6,11.3],"J8o":[51.7,16.8,9.5],"T9o":[51.7,18.9,11.3],"K3o":[51.2,14.2,7.8],"Q6o":[51.1,14.4,7.6],"98s":[51.1,20.2,13.4],"T7s":[51.0,19.0,12.4],"J6s":[50.8,17.4,11.1],"Q3s":[50.7,17.0,11.1],"22":[50.3,15.5,12.0],"K2o":[50.2,13.7,7.6],"Q5o":[50.2,13.9,7.4],"J5s":[50.0,17.0,10.8],"T8o":[50.0,16.9,9.9],"Q2s":[49.9,16.6,10.9],"J7o":[49.9,14.9,8.1],"97s":[49.5,18.9,12.5],"T6s":[49.2,17.4,11.2],"Q4o":[49.0,13.3,7.1],"J4s":[49.0,16.4,10.6],"98o":[48.4,16.6,9.9],"T7o":[48.2,15.1,8.6],"87s":[48.2,18.9,12.7],"Q3o":[47.9,12.8,6.9],"J6o":[47.9,13.2,7.0],"J3s":[47.9,16.0,10.4],"96s":[47.7,17.4,11.4],"T5s":[47.2,16.0,10.2],"J5o":[47.1,12.8,6.7],"J2s":[47.1,15.6,10.2],"Q2o":[47.0,12.3,6.8],"97o":[46.7,15.1,8.8],"86s":[46.5,17.6,11.9],"T4s":[46.4,15.6,10.0],"T6o":[46.3,13.4,7.3],"J4o":[46.1,12.3,6.5],"95s":[45.9,16.0,10.3],"76s":[45.7,18.0,12.3],"T3s":[45.5,15.1,9.8],"87o":[45.5,15.4,9.3],"J3o":[45.0,11.7,6.3],"96o":[44.9,13.5,7.8],"85s":[44.8,16.3,10.9],"T2s":[44.7,14.8,9.7],"T5o":[44.2,11.9,6.4],"J2o":[44.0,11.3,6.2],"94s":[43.8,14.6,9.4],"75s":[43.8,16.7,11.4],"86o":[43.6,13.9,8.3],"T4o":[43.4,11.5,6.2],"93s":[43.2,14.3,9.2],"65s":[43.2,17.0,11.9],"95o":[42.9,12.0,6.6],"84s":[42.7,14.8,9.8],"76o":[42.7,14.2,8.8],"T3o":[42.4,11.0,6.0],"92s":[42.3,13.9,9.1],"74s":[41.8,15.3,10.4],"85o":[41.7,12.4,7.3],"T2o":[41.5,10.6,5.8],"64s":[41.4,15.9,11.1],"54s":[41.1,16.5,11.7],"83s":[40.8,13.6,8.9],"75o":[40.8,12.8,7.9],"94o":[40.7,10.5,5.6],"82s":[40.3,13.3,8.8],"65o":[40.1,13.3,8.5],"73s":[40.0,14.0,9.3],"93o":[39.9,10.1,5.4],"84o":[39.6,10.8,6.1],"63s":[39.4,14.5,10.0],"53s":[39.3,15.2,10.8],"92o":[38.9,9.6,5.2],"74o":[38.6,11.4,6.8],"72s":[38.1,12.8,8.5],"64o":[38.0,12.0,7.6],"43s":[38.0,14.7,10.3],"54o":[37.9,12.6,8.2],"83o":[37.5,9.5,5.1],"62s":[37.5,13.3,9.1],"52s":[37.5,14.0,9.8],"82o":[36.8,9.1,4.9],"73o":[36.6,9.9,5.7],"42s":[36.3,13.7,9.6],"63o":[35.9,10.6,6.5],"53o":[35.8,11.4,7.3],"32s":[35.1,13.0,9.2],"72o":[34.6,8.6,4.8],"43o":[34.4,10.7,6.8],"62o":[34.0,9.1,5.4],"52o":[33.9,10.0,6.2],"42o":[32.5,9.5,6.0],"32o":[31.2,8.9,5.6]
     };
 
     const yokosawa_rules = {
-        blue:{color:"#1a365d", limit:9, hands:["AA","AKs","AKo","KK","QQ"]},
-        red:{color:"#c53030", limit:9, hands:["AQs","AJs","ATs","KQs","AQo","JJ","TT","99"]},
-        yellow:{color:"#d69e2e", limit:7, hands:["KJs","QJs","JTs","KQo","AJo","88","77"]},
-        green:{color:"#2f855a", limit:5, hands:["A9s","A8s","A7s","A6s","A5s","A4s","A3s","A2s","KTs","K9s","T9s","QTs","KJo","ATo","66","55"]},
+        blue:{color:"#4d94ff", limit:9, hands:["AA","AKs","AKo","KK","QQ"]},
+        red:{color:"#ff4d4d", limit:9, hands:["AQs","AJs","ATs","KQs","AQo","JJ","TT","99"]},
+        yellow:{color:"#ffcc00", limit:7, hands:["KJs","QJs","JTs","KQo","AJo","88","77"]},
+        green:{color:"#5cd65c", limit:5, hands:["A9s","A8s","A7s","A6s","A5s","A4s","A3s","A2s","KTs","K9s","T9s","QTs","KJo","ATo","66","55"]},
         cyan:{color:"#3182ce", limit:3, hands:["Q9s","J9s","T8s","98s","QJo","KTo","JTo","A9o","44","33","22"]},
         white:{color:"#ffffff", limit:0, hands:["K8s","K7s","K6s","K5s","K4s","K3s","K2s","Q8s","Q7s","Q6s","J8s","J7s","QTo","K9o","Q9o","J9o","T9o","97s","87s","76s","65s","A8o","A7o"]}
     };
@@ -146,7 +146,7 @@
             const angle = (i * (360/playerCount)) + 90;
             const p = document.createElement('div'); p.className = 'player' + (foldedPlayers[i] ? ' folded' : '');
             p.style.left = (50 + 44 * Math.cos(angle * Math.PI / 180)) + '%';
-            p.style.top = (50 + (i===0?30:42) * Math.sin(angle * Math.PI / 180)) + '%';
+            p.style.top = (50 + (i===0?32:42) * Math.sin(angle * Math.PI / 180)) + '%';
             
             const curIdx = (i - btnPosition + playerCount) % playerCount;
             const pos = getPosName(curIdx, playerCount);
@@ -194,42 +194,102 @@
         renderPlayers();
     }
 
+    // リアルタイム勝率（ボード考慮）の計算
+    function calcRealtimeEQ(hand, boardCards, activePlayers) {
+        if (boardCards.length === 0) return null; // プリフロップはDBを使用
+
+        let score = 0;
+        const hRanks = hand.cards.map(c => c.rankVal);
+        const bRanks = boardCards.map(c => c.rankVal);
+        const allRanks = [...hRanks, ...bRanks].sort((a,b)=>b-a);
+        const hSuits = hand.cards.map(c => c.suit);
+        const bSuits = boardCards.map(c => c.suit);
+        const allSuits = [...hSuits, ...bSuits];
+
+        // 1. ペア系の強さ
+        const counts = {}; allRanks.forEach(r => counts[r] = (counts[r]||0)+1);
+        const pairs = Object.values(counts).filter(c => c >= 2);
+        if (pairs.includes(4)) score += 90;
+        else if (pairs.includes(3) && pairs.length >= 2) score += 80;
+        else if (pairs.includes(3)) score += 40;
+        else if (pairs.length >= 2) score += 25;
+        else if (pairs.length === 1) score += 15;
+
+        // 2. フラッシュドロー判定
+        const suitCounts = {}; allSuits.forEach(s => suitCounts[s] = (suitCounts[s]||0)+1);
+        const maxSuit = Math.max(...Object.values(suitCounts));
+        if (maxSuit >= 5) score += 100;
+        else if (maxSuit === 4 && boardCards.length < 5) score += 25; // ドロー期待値
+
+        // 3. ストレート期待値 (簡易)
+        const uniqueRanks = [...new Set(allRanks)].sort((a,b)=>b-a);
+        let connected = 1, maxConn = 1;
+        for(let i=0; i<uniqueRanks.length-1; i++) {
+            if(uniqueRanks[i] - uniqueRanks[i+1] === 1) { connected++; maxConn = Math.max(maxConn, connected); }
+            else { connected = 1; }
+        }
+        if (maxConn >= 5) score += 100;
+        else if (maxConn === 4 && boardCards.length < 5) score += 20;
+
+        // 人数による減衰と正規化
+        let baseEq = Math.min(score, 100) / activePlayers;
+        // ハイカード補正
+        baseEq += (Math.max(...hRanks) / 14) * 10 / activePlayers;
+
+        return Math.min(baseEq * 1.5, 95.0);
+    }
+
     function calcLogic(){
         if(!usedCards['h1'] || !usedCards['h2']) return;
-        const [s1, r1] = usedCards['h1'].split('-');
-        const [s2, r2] = usedCards['h2'].split('-');
-        const v1 = 14-ranks.indexOf(r1), v2 = 14-ranks.indexOf(r2);
-        const c1 = (r1==='10'?'T':r1), c2 = (r2==='10'?'T':r2);
-        const hand = (v1===v2)? c1+c1 : (v1>v2?c1+c2:c2+c1)+(s1===s2?'s':'o');
+        
+        // データのパース
+        const parse = (id) => {
+            const [s, r] = usedCards[id].split('-');
+            return { suit: s, rank: r, rankVal: 14 - ranks.indexOf(r) };
+        };
+        const h1 = parse('h1'), h2 = parse('h2');
+        const board = [];
+        for(let i=1; i<=5; i++) { if(usedCards['b'+i]) board.push(parse('b'+i)); }
 
-        // 勝率計算 (アクティブ人数に基づく)
+        // ハンド文字列作成
+        const c1 = (h1.rank==='10'?'T':h1.rank), c2 = (h2.rank==='10'?'T':h2.rank);
+        const handStr = (h1.rankVal===h2.rankVal)? c1+c1 : (h1.rankVal>h2.rankVal?c1+c2:c2+c1)+(h1.suit===h2.suit?'s':'o');
+
+        // 1. スタート勝率 (プリフロップDB)
         const activeCount = playerCount - Object.values(foldedPlayers).filter(v=>v).length;
-        let eq = 0;
-        if(eqDB[hand]){
-            const vals = eqDB[hand]; // [2, 6, 10]
-            if(activeCount <= 2) eq = vals[0];
-            else if(activeCount <= 6) eq = vals[0] + (vals[1]-vals[0]) * (activeCount-2)/4;
-            else if(activeCount <= 10) eq = vals[1] + (vals[2]-vals[1]) * (activeCount-6)/4;
-            else eq = vals[2];
+        let startEq = 0;
+        if(eqDB[handStr]){
+            const v = eqDB[handStr];
+            if(activeCount <= 2) startEq = v[0];
+            else if(activeCount <= 6) startEq = v[0] + (v[1]-v[0]) * (activeCount-2)/4;
+            else if(activeCount <= 10) startEq = v[1] + (v[2]-v[1]) * (activeCount-6)/4;
         }
-        document.getElementById('eq-val').innerText = eq.toFixed(1) + "%";
+        document.getElementById('eq-val').innerText = startEq.toFixed(1) + "%";
 
-        // レンジ判定
+        // 2. リアルタイム勝率
+        let realEq = startEq;
+        if (board.length > 0) {
+            realEq = calcRealtimeEQ({cards:[h1, h2]}, board, activeCount);
+        }
+        document.getElementById('real-eq').innerText = realEq.toFixed(1) + "%";
+
+        // 3. 残り枚数情報
+        const nextMap = {0:"Preflop", 1:"Flop(2)", 2:"Flop(1)", 3:"Turn", 4:"River", 5:"End"};
+        document.getElementById('next-info').innerText = nextMap[board.length] || "End";
+
+        // 4. レンジ判定 (以前のロジック維持)
         const heroPos = (0 - btnPosition + playerCount) % playerCount;
         let countToBB = (heroPos === 0) ? 3 : (heroPos === 1) ? 2 : (heroPos === 2) ? 1 : (playerCount - heroPos) + 2;
-
         let action = "FOLD", color = "#888";
         for(let k in yokosawa_rules){
-            const r = yokosawa_rules[k];
-            if(r.hands.includes(hand)){
-                const isWhiteOk = (k==='white' && (heroPos<=2));
-                if(isWhiteOk || countToBB <= r.limit){ action="OPEN"; color=r.color; }
+            if(yokosawa_rules[k].hands.includes(handStr)){
+                if((k==='white' && heroPos<=2) || countToBB <= yokosawa_rules[k].limit){ action="OPEN"; color=yokosawa_rules[k].color; }
                 break;
             }
         }
-        const txt = document.getElementById('yokosawa-text');
-        txt.innerText = action; txt.style.color = color;
-        document.getElementById('gto-text').innerText = eq > (100/activeCount) ? "RAISE" : "FOLD";
+        const tx = document.getElementById('yokosawa-text');
+        tx.innerText = action; tx.style.color = color;
+        document.getElementById('gto-text').innerText = realEq > (100/activeCount) ? "RAISE" : "FOLD";
     }
 
     renderPlayers();
